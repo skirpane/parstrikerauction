@@ -1,656 +1,994 @@
 import { useState, useEffect, useRef } from "react";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
-interface SkillTier {
-  basePrice: number;
-  color: string;
-  badge: string;
-}
+type Role = "login" | "admin" | "captain" | "viewer";
+
+interface SkillTier { basePrice: number; color: string; badge: string; }
 
 interface Player {
-  id: number;
-  name: string;
-  role: string;
-  tier: string;
-  country: string;
-  img: string;
-  basePrice: number;
-  soldTo: number | null;
-  soldPrice: number | null;
+  id: number; name: string; role: string; tier: string;
+  country: string; img: string; basePrice: number;
+  soldTo: number | null; soldPrice: number | null; round: number | null;
 }
 
-interface SquadPlayer extends Player {
-  soldPrice: number;
-  isMarquee: boolean;
-}
+interface SquadPlayer extends Player { soldPrice: number; isMarquee: boolean; round: number; }
 
 interface Team {
-  id: number;
-  name: string;
-  short: string;
-  color: string;
-  accent: string;
-  captain: string;
-  purse: number;
-  squad: SquadPlayer[];
-  marqueeCount: number;
+  id: number; name: string; short: string; color: string;
+  accent: string; captainPass: string; purse: number;
+  squad: SquadPlayer[]; marqueeCount: number;
 }
 
-interface LogItem {
-  icon: string;
-  text: string;
-  time: string;
-}
+interface LogItem { icon: string; text: string; time: string; }
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const PURSE = 1000;
-const MIN_BID_INCREMENT = 5;
+const MIN_BID = 5;
 const MAX_MARQUEE = 8;
 const MAX_SQUAD = 15;
+const TOTAL_ROUNDS = 3;
+const ADMIN_PASS = "admin123";
 
-const SKILL_TIERS: Record<string, SkillTier> = {
+const TIERS: Record<string, SkillTier> = {
   "World Class":   { basePrice: 200, color: "#FFD700", badge: "★★★" },
-  "International": { basePrice: 100, color: "#C0C0C0", badge: "★★" },
-  "Domestic Star": { basePrice: 50,  color: "#CD7F32", badge: "★" },
-  "Emerging":      { basePrice: 20,  color: "#4fc3f7", badge: "◆" },
+  "International": { basePrice: 100, color: "#C0C0C0", badge: "★★"  },
+  "Domestic Star": { basePrice: 50,  color: "#CD7F32", badge: "★"   },
+  "Emerging":      { basePrice: 20,  color: "#4fc3f7", badge: "◆"   },
 };
 
+const TIER_ORDER = ["World Class", "International", "Domestic Star", "Emerging"];
+
 const RAW_PLAYERS = [
-  { id: 1,  name: "Virat Kohli",       role: "Batsman",     tier: "World Class",   country: "IND", img: "VK"  },
-  { id: 2,  name: "Rohit Sharma",      role: "Batsman",     tier: "World Class",   country: "IND", img: "RS"  },
-  { id: 3,  name: "Jasprit Bumrah",    role: "Bowler",      tier: "World Class",   country: "IND", img: "JB"  },
-  { id: 4,  name: "Jos Buttler",       role: "WK-Batsman",  tier: "World Class",   country: "ENG", img: "JBu" },
-  { id: 5,  name: "Pat Cummins",       role: "All-Rounder", tier: "World Class",   country: "AUS", img: "PC"  },
-  { id: 6,  name: "Babar Azam",        role: "Batsman",     tier: "World Class",   country: "PAK", img: "BA"  },
-  { id: 7,  name: "Ben Stokes",        role: "All-Rounder", tier: "World Class",   country: "ENG", img: "BS"  },
-  { id: 8,  name: "Kane Williamson",   role: "Batsman",     tier: "World Class",   country: "NZ",  img: "KW"  },
-  { id: 9,  name: "Shreyas Iyer",      role: "Batsman",     tier: "International", country: "IND", img: "SI"  },
-  { id: 10, name: "Suryakumar Yadav",  role: "Batsman",     tier: "International", country: "IND", img: "SKY" },
-  { id: 11, name: "Ravindra Jadeja",   role: "All-Rounder", tier: "International", country: "IND", img: "RJ"  },
-  { id: 12, name: "Mohammed Shami",    role: "Bowler",      tier: "International", country: "IND", img: "MS"  },
-  { id: 13, name: "Glenn Maxwell",     role: "All-Rounder", tier: "International", country: "AUS", img: "GM"  },
-  { id: 14, name: "Quinton de Kock",   role: "WK-Batsman",  tier: "International", country: "SA",  img: "QDK" },
-  { id: 15, name: "Trent Boult",       role: "Bowler",      tier: "International", country: "NZ",  img: "TB"  },
-  { id: 16, name: "Rashid Khan",       role: "Bowler",      tier: "International", country: "AFG", img: "RK"  },
-  { id: 17, name: "David Warner",      role: "Batsman",     tier: "International", country: "AUS", img: "DW"  },
-  { id: 18, name: "Shubman Gill",      role: "Batsman",     tier: "International", country: "IND", img: "SG"  },
-  { id: 19, name: "Prithvi Shaw",      role: "Batsman",     tier: "Domestic Star", country: "IND", img: "PS"  },
-  { id: 20, name: "Ishan Kishan",      role: "WK-Batsman",  tier: "Domestic Star", country: "IND", img: "IK"  },
-  { id: 21, name: "Shardul Thakur",    role: "All-Rounder", tier: "Domestic Star", country: "IND", img: "ST"  },
-  { id: 22, name: "Axar Patel",        role: "All-Rounder", tier: "Domestic Star", country: "IND", img: "AP"  },
-  { id: 23, name: "Arshdeep Singh",    role: "Bowler",      tier: "Domestic Star", country: "IND", img: "AS"  },
-  { id: 24, name: "Deepak Hooda",      role: "All-Rounder", tier: "Domestic Star", country: "IND", img: "DH"  },
-  { id: 25, name: "Rinku Singh",       role: "Batsman",     tier: "Domestic Star", country: "IND", img: "RSi" },
-  { id: 26, name: "Tilak Varma",       role: "Batsman",     tier: "Domestic Star", country: "IND", img: "TV"  },
-  { id: 27, name: "Yashasvi Jaiswal",  role: "Batsman",     tier: "Emerging",      country: "IND", img: "YJ"  },
-  { id: 28, name: "Riyan Parag",       role: "All-Rounder", tier: "Emerging",      country: "IND", img: "RP"  },
-  { id: 29, name: "Nitish Rana",       role: "Batsman",     tier: "Emerging",      country: "IND", img: "NR"  },
-  { id: 30, name: "Mukesh Kumar",      role: "Bowler",      tier: "Emerging",      country: "IND", img: "MK"  },
-  { id: 31, name: "Abhishek Sharma",   role: "All-Rounder", tier: "Emerging",      country: "IND", img: "AbS" },
-  { id: 32, name: "Rajat Patidar",     role: "Batsman",     tier: "Emerging",      country: "IND", img: "RPa" },
+  { id:1,  name:"Virat Kohli",      role:"Batsman",     tier:"World Class",   country:"IND", img:"VK"  },
+  { id:2,  name:"Rohit Sharma",     role:"Batsman",     tier:"World Class",   country:"IND", img:"RS"  },
+  { id:3,  name:"Jasprit Bumrah",   role:"Bowler",      tier:"World Class",   country:"IND", img:"JB"  },
+  { id:4,  name:"Jos Buttler",      role:"WK-Batsman",  tier:"World Class",   country:"ENG", img:"JBu" },
+  { id:5,  name:"Pat Cummins",      role:"All-Rounder", tier:"World Class",   country:"AUS", img:"PC"  },
+  { id:6,  name:"Babar Azam",       role:"Batsman",     tier:"World Class",   country:"PAK", img:"BA"  },
+  { id:7,  name:"Ben Stokes",       role:"All-Rounder", tier:"World Class",   country:"ENG", img:"BS"  },
+  { id:8,  name:"Kane Williamson",  role:"Batsman",     tier:"World Class",   country:"NZ",  img:"KW"  },
+  { id:9,  name:"Shreyas Iyer",     role:"Batsman",     tier:"International", country:"IND", img:"SI"  },
+  { id:10, name:"Suryakumar Yadav", role:"Batsman",     tier:"International", country:"IND", img:"SKY" },
+  { id:11, name:"Ravindra Jadeja",  role:"All-Rounder", tier:"International", country:"IND", img:"RJ"  },
+  { id:12, name:"Mohammed Shami",   role:"Bowler",      tier:"International", country:"IND", img:"MS"  },
+  { id:13, name:"Glenn Maxwell",    role:"All-Rounder", tier:"International", country:"AUS", img:"GM"  },
+  { id:14, name:"Quinton de Kock",  role:"WK-Batsman",  tier:"International", country:"SA",  img:"QDK" },
+  { id:15, name:"Trent Boult",      role:"Bowler",      tier:"International", country:"NZ",  img:"TB"  },
+  { id:16, name:"Rashid Khan",      role:"Bowler",      tier:"International", country:"AFG", img:"RK"  },
+  { id:17, name:"David Warner",     role:"Batsman",     tier:"International", country:"AUS", img:"DW"  },
+  { id:18, name:"Shubman Gill",     role:"Batsman",     tier:"International", country:"IND", img:"SG"  },
+  { id:19, name:"Prithvi Shaw",     role:"Batsman",     tier:"Domestic Star", country:"IND", img:"PS"  },
+  { id:20, name:"Ishan Kishan",     role:"WK-Batsman",  tier:"Domestic Star", country:"IND", img:"IK"  },
+  { id:21, name:"Shardul Thakur",   role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"ST"  },
+  { id:22, name:"Axar Patel",       role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"AP"  },
+  { id:23, name:"Arshdeep Singh",   role:"Bowler",      tier:"Domestic Star", country:"IND", img:"AS"  },
+  { id:24, name:"Rinku Singh",      role:"Batsman",     tier:"Domestic Star", country:"IND", img:"RSi" },
+  { id:25, name:"Tilak Varma",      role:"Batsman",     tier:"Domestic Star", country:"IND", img:"TV"  },
+  { id:26, name:"Deepak Hooda",     role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"DH"  },
+  { id:27, name:"Yashasvi Jaiswal", role:"Batsman",     tier:"Emerging",      country:"IND", img:"YJ"  },
+  { id:28, name:"Riyan Parag",      role:"All-Rounder", tier:"Emerging",      country:"IND", img:"RP"  },
+  { id:29, name:"Nitish Rana",      role:"Batsman",     tier:"Emerging",      country:"IND", img:"NR"  },
+  { id:30, name:"Mukesh Kumar",     role:"Bowler",      tier:"Emerging",      country:"IND", img:"MK"  },
+  { id:31, name:"Abhishek Sharma",  role:"All-Rounder", tier:"Emerging",      country:"IND", img:"AbS" },
+  { id:32, name:"Rajat Patidar",    role:"Batsman",     tier:"Emerging",      country:"IND", img:"RPa" },
 ];
 
-const INITIAL_PLAYERS: Player[] = RAW_PLAYERS.map((p) => ({
-  ...p,
-  basePrice: SKILL_TIERS[p.tier].basePrice,
-  soldTo: null,
-  soldPrice: null,
+const INIT_PLAYERS: Player[] = RAW_PLAYERS.map(p => ({
+  ...p, basePrice: TIERS[p.tier].basePrice, soldTo: null, soldPrice: null, round: null,
 }));
 
-const DEFAULT_TEAMS: Team[] = [
-  { id: 1, name: "Parstriker Blue Indians",      short: "BI",  color: "#004BA0", accent: "#D1AB3E", captain: "Ashish", purse: PURSE, squad: [], marqueeCount: 0 },
-  { id: 2, name: "Parstriker Red Knight", short: "RK", color: "#F5A623", accent: "#0081C9", captain: "Kannan", purse: PURSE, squad: [], marqueeCount: 0 },
-  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#D10000", accent: "#FFD700", captain: "Sandeep", purse: PURSE, squad: [], marqueeCount: 0 },
+const INIT_TEAMS: Team[] = [
+  { id: 1, name: "Parstriker Blue Indians",      short: "BI",  color: "#004BA0", accent: "#D1AB3E",  captainPass:"mi123",  purse:PURSE, squad:[], marqueeCount:0 },
+  { id: 2, name: "Parstriker Red Knight", short: "RK", color: "#F5A623", accent: "#0081C9", captainPass:"rk123", purse:PURSE, squad:[], marqueeCount:0 },
+  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#D10000", accent: "#FFD700", captainPass:"ww123", purse:PURSE, squad:[], marqueeCount:0 },
 ];
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const fmt = (v: number): string => v >= 100 ? `₹${(v/100).toFixed(1)}Cr` : `₹${v}L`;
+const tierColor = (t: string): string =>
+  ({ "World Class":"#FFD700","International":"#C0C0C0","Domestic Star":"#CD7F32","Emerging":"#4fc3f7" }[t] ?? "#888");
 
-// ─── UTILS ───────────────────────────────────────────────────────────────────
-function fmt(val: number): string {
-  if (val >= 100) return `₹${(val / 100).toFixed(1)} Cr`;
-  return `₹${val} L`;
-}
-
-function avatarBg(tier: string): string {
-  const map: Record<string, string> = {
-    "World Class": "#FFD700",
-    "International": "#C0C0C0",
-    "Domestic Star": "#CD7F32",
-    "Emerging": "#4fc3f7",
+// ─── SHARED STATE ─────────────────────────────────────────────────────────────
+function useShared<T>(key: string, init: T): [T, (v: T | ((p: T) => T)) => void] {
+  const stored = localStorage.getItem(key);
+  const [state, setLocal] = useState<T>(() => {
+    try { return stored ? (JSON.parse(stored) as T) : init; } catch { return init; }
+  });
+  const setState = (v: T | ((p: T) => T)) => {
+    setLocal(prev => {
+      const next = typeof v === "function" ? (v as (p: T) => T)(prev) : v;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   };
-  return map[tier] ?? "#888";
+  useEffect(() => {
+    const h = (e: StorageEvent) => {
+      if (e.key === key && e.newValue) {
+        try { setLocal(JSON.parse(e.newValue) as T); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener("storage", h);
+    return () => window.removeEventListener("storage", h);
+  }, [key]);
+  return [state, setState];
 }
 
-// ─── CSS ─────────────────────────────────────────────────────────────────────
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Bebas+Neue&family=Inter:wght@300;400;500;600&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0a0f; --surface: #12121a; --card: #1a1a26; --border: #2a2a3d;
-    --gold: #FFD700; --text: #f0f0f8; --muted: #7070a0;
-    --danger: #ff4757; --success: #2ed573;
-  }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
-  .header { background: linear-gradient(135deg,#0a0a0f,#1a0a2e,#0a0a1a); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
-  .header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--gold); display:flex; align-items:center; gap:10px; }
-  .header-logo span { color:var(--text); }
-  .nav-tabs { display:flex; gap:4px; }
-  .nav-tab { background:transparent; border:1px solid transparent; color:var(--muted); padding:8px 16px; border-radius:8px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:600; letter-spacing:1px; transition:all .2s; }
-  .nav-tab:hover { color:var(--text); border-color:var(--border); }
-  .nav-tab.active { background:var(--card); border-color:var(--gold); color:var(--gold); }
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#08080f;--s1:#101018;--s2:#181825;--s3:#222232;--bd:#2e2e45;--gold:#FFD700;--txt:#eeeef8;--mut:#6060a0;--ok:#2ed573;--ng:#ff4757;--warn:#ffa502}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
 
-  /* SETUP */
-  .setup-screen { max-width:900px; margin:0 auto; padding:40px 24px; }
-  .setup-title { font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:4px; text-align:center; margin-bottom:8px; }
-  .setup-title span { color:var(--gold); }
-  .setup-sub { text-align:center; color:var(--muted); margin-bottom:48px; font-size:15px; }
-  .team-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; margin-bottom:32px; }
-  .team-setup-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; transition:border-color .2s; }
-  .team-setup-card:hover { border-color:var(--gold); }
-  .team-color-bar { height:4px; border-radius:2px; margin-bottom:16px; }
-  .team-setup-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:18px; margin-bottom:4px; }
-  .team-short { font-size:12px; color:var(--muted); margin-bottom:12px; }
-  .input-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
-  .input-field { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-size:14px; outline:none; transition:border-color .2s; }
-  .input-field:focus { border-color:var(--gold); }
-  .start-btn { width:100%; padding:18px; background:linear-gradient(135deg,#FFD700,#FFA500); border:none; border-radius:12px; color:#000; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; cursor:pointer; transition:all .2s; margin-top:8px; }
-  .start-btn:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(255,215,0,.3); }
-  .start-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 20%,#1a0a2e,transparent 60%),radial-gradient(ellipse at 70% 80%,#0a1a0e,transparent 60%),var(--bg)}
+.login-box{background:var(--s2);border:1px solid var(--bd);border-radius:24px;padding:48px 40px;width:100%;max-width:420px;text-align:center}
+.login-logo{font-family:'Bebas Neue';font-size:42px;letter-spacing:4px;color:var(--gold);margin-bottom:4px}
+.login-sub{color:var(--mut);font-size:14px;margin-bottom:36px}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+.role-btn{background:var(--s3);border:2px solid var(--bd);border-radius:14px;padding:20px 12px;cursor:pointer;transition:all .2s;color:var(--txt);text-align:center}
+.role-btn:hover,.role-btn.sel{border-color:var(--gold);background:rgba(255,215,0,.07)}
+.role-icon{font-size:28px;margin-bottom:6px}
+.role-name{font-family:'Rajdhani';font-weight:700;font-size:15px;letter-spacing:1px}
+.role-hint{font-size:11px;color:var(--mut);margin-top:3px}
+.inp{width:100%;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;color:var(--txt);font-size:15px;outline:none;transition:border-color .2s;margin-bottom:12px}
+.inp:focus{border-color:var(--gold)}
+.go-btn{width:100%;padding:16px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;cursor:pointer;transition:all .2s}
+.go-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,215,0,.3)}
+.go-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.err-msg{color:var(--ng);font-size:13px;margin-bottom:10px}
+.hint-txt{margin-top:10px;font-size:11px;color:var(--mut)}
 
-  /* AUCTION LAYOUT */
-  .auction-layout { display:grid; grid-template-columns:1fr 360px; min-height:calc(100vh - 65px); }
-  .stage { padding:24px; background:radial-gradient(ellipse at top,#1a0a2e,#0a0a0f 70%); }
-  .stage-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
-  .progress-info { font-family:'Rajdhani',sans-serif; color:var(--muted); font-size:14px; }
-  .progress-bar-outer { background:var(--border); border-radius:4px; height:6px; width:200px; margin-top:6px; }
-  .progress-bar-inner { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--gold),#FFA500); transition:width .5s; }
+.hdr{background:linear-gradient(90deg,#08080f,#12081e,#08080f);border-bottom:1px solid var(--bd);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(20px)}
+.hdr-logo{font-family:'Bebas Neue';font-size:22px;letter-spacing:3px;color:var(--gold)}
+.hdr-logo span{color:var(--txt)}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.role-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.nav-bar{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px;overflow-x:auto}
+.nav-btn{background:transparent;border:none;color:var(--mut);padding:13px 15px;cursor:pointer;font-family:'Rajdhani';font-weight:700;font-size:13px;letter-spacing:1px;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.nav-btn:hover{color:var(--txt)}
+.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.logout-btn{background:var(--s3);border:1px solid var(--bd);color:var(--mut);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
+.logout-btn:hover{border-color:var(--ng);color:var(--ng)}
+.reset-btn{background:var(--s3);border:1px solid var(--ng);color:var(--ng);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
 
-  /* PLAYER SPOTLIGHT */
-  .player-spotlight { background:var(--card); border:1px solid var(--border); border-radius:24px; padding:32px; text-align:center; margin-bottom:24px; position:relative; overflow:hidden; }
-  .player-spotlight::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(ellipse,rgba(255,215,0,.05),transparent 60%); pointer-events:none; }
-  .tier-badge { display:inline-flex; align-items:center; gap:8px; background:var(--surface); border-radius:20px; padding:6px 14px; margin-bottom:20px; font-size:12px; font-weight:600; letter-spacing:1px; }
-  .player-avatar { width:100px; height:100px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 auto 16px; border:3px solid; }
-  .player-name { font-family:'Bebas Neue',sans-serif; font-size:42px; letter-spacing:3px; margin-bottom:8px; line-height:1; }
-  .player-meta { display:flex; justify-content:center; gap:16px; margin-bottom:24px; }
-  .meta-chip { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:13px; }
+.round-banner{background:linear-gradient(135deg,#1a0a2e,#0a1a2e);border:1px solid var(--bd);border-radius:20px;padding:48px 40px;text-align:center;margin:24px auto;max-width:580px}
+.rb-eyebrow{font-family:'Rajdhani';font-size:13px;letter-spacing:3px;color:var(--mut);text-transform:uppercase;margin-bottom:8px}
+.rb-title{font-family:'Bebas Neue';font-size:52px;letter-spacing:4px;color:var(--gold);margin-bottom:10px}
+.rb-desc{color:var(--mut);font-size:14px;margin-bottom:28px;line-height:1.6}
+.rb-btn{padding:16px 44px;background:linear-gradient(135deg,var(--gold),#ffa500);border:none;border-radius:12px;color:#000;font-family:'Bebas Neue';font-size:22px;letter-spacing:3px;cursor:pointer;transition:all .2s}
+.rb-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,215,0,.3)}
 
-  /* BID BOX */
-  .current-bid-box { background:var(--surface); border-radius:16px; padding:20px; margin-bottom:24px; }
-  .bid-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:4px; }
-  .bid-amount { font-family:'Bebas Neue',sans-serif; font-size:56px; letter-spacing:2px; color:var(--gold); line-height:1; }
-  .bid-unit { font-size:16px; color:var(--muted); margin-top:2px; }
-  .bidding-team { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; margin-top:8px; }
+.auction-wrap{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 110px)}
+.stage{padding:22px;background:radial-gradient(ellipse at top,#1a0a2e,var(--bg) 65%);overflow-y:auto}
+.stage-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.round-pill{padding:5px 14px;border-radius:20px;font-family:'Rajdhani';font-weight:700;font-size:12px;letter-spacing:1px;background:rgba(255,215,0,.12);color:var(--gold)}
+.prog-bar{background:var(--bd);border-radius:4px;height:5px;width:180px;margin-top:5px}
+.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),#ffa500);transition:width .5s}
 
-  /* BID BUTTONS */
-  .bid-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .team-bid-btn { padding:14px 12px; border-radius:12px; border:2px solid transparent; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; letter-spacing:1px; transition:all .2s; text-align:left; }
-  .team-bid-btn:disabled { opacity:.35; cursor:not-allowed; }
-  .team-bid-btn:not(:disabled):hover { transform:translateY(-2px); filter:brightness(1.1); }
-  .team-name-sm { font-size:13px; opacity:.8; display:block; }
-  .team-purse-sm { font-size:11px; opacity:.6; display:block; margin-top:2px; }
-  .action-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
-  .sold-btn { background:linear-gradient(135deg,var(--success),#00b36b); border:none; border-radius:12px; color:#000; padding:14px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; cursor:pointer; transition:all .2s; }
-  .sold-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(46,213,115,.3); }
-  .sold-btn:disabled { opacity:.4; cursor:not-allowed; }
-  .unsold-btn { background:var(--surface); border:1px solid var(--border); border-radius:12px; color:var(--muted); padding:14px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; cursor:pointer; transition:all .2s; }
-  .unsold-btn:hover { border-color:var(--danger); color:var(--danger); }
-  .unsold-btn:disabled { opacity:.4; cursor:not-allowed; }
+.spotlight{background:var(--s2);border:1px solid var(--bd);border-radius:22px;padding:28px;text-align:center;margin-bottom:18px;position:relative;overflow:hidden}
+.spotlight::before{content:'';position:absolute;top:-60%;left:-30%;width:160%;height:160%;background:radial-gradient(ellipse,rgba(255,215,0,.04),transparent 55%);pointer-events:none}
+.tier-tag{display:inline-flex;align-items:center;gap:6px;background:var(--s1);border-radius:20px;padding:5px 14px;margin-bottom:16px;font-size:11px;font-weight:600;letter-spacing:1px;border:1px solid}
+.p-avatar{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:22px;margin:0 auto 12px;border:3px solid}
+.p-name{font-family:'Bebas Neue';font-size:38px;letter-spacing:3px;line-height:1;margin-bottom:10px}
+.p-meta{display:flex;justify-content:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.chip{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:4px 12px;font-size:12px}
+.bid-box{background:var(--s1);border-radius:14px;padding:16px;margin-bottom:18px}
+.bid-lbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px}
+.bid-amt{font-family:'Bebas Neue';font-size:50px;letter-spacing:2px;color:var(--gold);line-height:1}
+.bid-sub{font-size:12px;color:var(--mut);margin-top:3px}
+.bid-leader{font-family:'Rajdhani';font-size:14px;font-weight:700;margin-top:6px}
 
-  /* SOLD OVERLAY */
-  .sold-overlay { position:absolute; inset:0; background:rgba(0,0,0,.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:24px; z-index:10; animation:fadeIn .3s ease; }
-  .sold-text { font-family:'Bebas Neue',sans-serif; font-size:72px; letter-spacing:8px; color:var(--success); animation:zoomIn .4s ease; }
-  .sold-to { font-size:18px; color:var(--muted); margin-top:4px; }
-  .sold-price-tag { font-family:'Bebas Neue',sans-serif; font-size:36px; color:var(--gold); }
-  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-  @keyframes zoomIn { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+.bid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.tbid-btn{padding:11px 8px;border-radius:10px;border:2px solid;cursor:pointer;font-family:'Rajdhani';font-weight:700;font-size:12px;transition:all .2s;text-align:left;background:var(--s2)}
+.tbid-btn:disabled{opacity:.28;cursor:not-allowed}
+.tbid-btn:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.15)}
+.tbadge{font-family:'Bebas Neue';font-size:12px;letter-spacing:1.5px;padding:2px 6px;border-radius:4px}
 
-  /* SIDEBAR */
-  .sidebar { background:var(--surface); border-left:1px solid var(--border); overflow-y:auto; max-height:calc(100vh - 65px); }
-  .sidebar-section { padding:20px; border-bottom:1px solid var(--border); }
-  .sidebar-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:16px; }
-  .team-card { background:var(--card); border-radius:12px; padding:14px; margin-bottom:10px; border:1px solid var(--border); cursor:pointer; transition:all .2s; }
-  .team-card.active-bidder { border-color:var(--gold); box-shadow:0 0 16px rgba(255,215,0,.15); }
-  .team-card-header { display:flex; justify-content:space-between; align-items:center; }
-  .team-badge { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; padding:3px 8px; border-radius:4px; }
-  .purse-bar { margin-top:8px; }
-  .purse-text { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px; }
-  .purse-outer { background:var(--border); border-radius:3px; height:4px; }
-  .purse-inner { height:100%; border-radius:3px; transition:width .5s; }
-  .squad-count { font-size:11px; color:var(--muted); margin-top:6px; }
-  .bid-log { max-height:200px; overflow-y:auto; }
-  .log-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--border); }
-  .log-icon { font-size:14px; flex-shrink:0; }
-  .log-text { font-size:12px; line-height:1.4; }
-  .log-time { font-size:10px; color:var(--muted); }
+.act-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sold-btn{background:linear-gradient(135deg,var(--ok),#00b36b);border:none;border-radius:12px;color:#000;padding:14px;font-family:'Bebas Neue';font-size:20px;letter-spacing:2px;cursor:pointer;transition:all .2s}
+.sold-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(46,213,115,.3)}
+.sold-btn:disabled{opacity:.38;cursor:not-allowed}
+.unsold-btn{background:var(--s1);border:2px solid var(--bd);border-radius:12px;color:var(--mut);padding:14px;font-family:'Bebas Neue';font-size:20px;letter-spacing:2px;cursor:pointer;transition:all .2s}
+.unsold-btn:hover:not(:disabled){border-color:var(--ng);color:var(--ng)}
+.unsold-btn:disabled{opacity:.38;cursor:not-allowed}
+.next-rnd-btn{width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:12px;color:#fff;font-family:'Bebas Neue';font-size:18px;letter-spacing:3px;cursor:pointer;transition:all .2s}
+.next-rnd-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,.35)}
 
-  /* PLAYERS SCREEN */
-  .players-list-screen { padding:24px; max-width:1200px; margin:0 auto; }
-  .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
-  .filter-btn { background:var(--card); border:1px solid var(--border); color:var(--muted); padding:6px 14px; border-radius:20px; cursor:pointer; font-size:13px; transition:all .2s; }
-  .filter-btn.active,.filter-btn:hover { border-color:var(--gold); color:var(--gold); }
-  .players-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
-  .player-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; transition:all .2s; }
-  .player-card.sold-card { opacity:.5; }
-  .player-card:hover { border-color:#444; }
-  .player-avatar-sm { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:14px; margin-bottom:10px; border:2px solid; }
-  .player-card-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; margin-bottom:4px; }
-  .player-card-role { font-size:11px; color:var(--muted); margin-bottom:8px; }
-  .player-tier-badge { font-size:10px; padding:2px 8px; border-radius:10px; display:inline-block; background:var(--surface); }
-  .sold-tag { font-size:10px; color:var(--success); font-weight:600; margin-top:6px; }
-  .base-price-tag { font-size:11px; color:var(--muted); margin-top:4px; }
+.sold-ov{position:absolute;inset:0;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:22px;z-index:10;animation:fadeIn .3s ease}
+.sold-ov-txt{font-family:'Bebas Neue';font-size:68px;letter-spacing:8px;color:var(--ok);animation:zoomIn .4s ease}
+.sold-ov-to{font-size:15px;color:var(--mut);margin-top:4px}
+.sold-ov-price{font-family:'Bebas Neue';font-size:32px;color:var(--gold)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes zoomIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 
-  /* TEAMS SCREEN */
-  .teams-screen { padding:24px; max-width:1200px; margin:0 auto; }
-  .teams-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; }
-  .team-full-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
-  .team-full-header { padding:20px; display:flex; justify-content:space-between; align-items:center; }
-  .team-full-name { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; }
-  .team-stats-row { display:flex; gap:16px; padding:0 20px 16px; }
-  .stat-box { background:var(--surface); border-radius:8px; padding:10px 14px; flex:1; }
-  .stat-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; }
-  .stat-lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
-  .squad-list { padding:0 20px 20px; }
-  .squad-player { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
-  .squad-player:last-child { border-bottom:none; }
-  .squad-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; border:1.5px solid; flex-shrink:0; }
-  .squad-info { flex:1; }
-  .squad-name { font-size:13px; font-weight:600; }
-  .squad-role { font-size:11px; color:var(--muted); }
-  .squad-price { font-size:12px; font-family:'Rajdhani',sans-serif; font-weight:700; color:var(--gold); }
-  .marquee-tag { font-size:9px; background:var(--gold); color:#000; padding:1px 5px; border-radius:3px; font-weight:700; letter-spacing:1px; margin-left:4px; }
+.sidebar{background:var(--s1);border-left:1px solid var(--bd);overflow-y:auto;max-height:calc(100vh - 110px)}
+.sb-sec{padding:14px;border-bottom:1px solid var(--bd)}
+.sb-title{font-family:'Rajdhani';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--mut);margin-bottom:12px}
+.tc{background:var(--s2);border-radius:10px;padding:11px;margin-bottom:7px;border:1px solid var(--bd);transition:all .2s}
+.tc.leading{border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,.12)}
+.tc-row{display:flex;justify-content:space-between;align-items:center}
+.pb-out{background:var(--bd);border-radius:3px;height:3px;margin-top:6px}
+.pb-in{height:100%;border-radius:3px;transition:width .5s}
+.sq-cnt{font-size:9px;color:var(--mut);margin-top:4px}
+.log-scroll{max-height:200px;overflow-y:auto}
+.log-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)}
+.log-ic{font-size:12px;flex-shrink:0;margin-top:1px}
+.log-txt{font-size:11px;line-height:1.4;flex:1}
+.log-time{font-size:9px;color:var(--mut)}
 
-  /* COMPLETE */
-  .complete-screen { min-height:calc(100vh - 65px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; }
-  .trophy { font-size:80px; margin-bottom:16px; animation:bounce 1s infinite alternate; }
-  @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-12px)} }
-  .complete-title { font-family:'Bebas Neue',sans-serif; font-size:64px; letter-spacing:6px; color:var(--gold); margin-bottom:8px; }
+.cap-wrap{max-width:860px;margin:0 auto;padding:18px}
+.cap-stats{background:var(--s2);border-radius:14px;padding:16px;margin-bottom:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.cap-stat{background:var(--s1);border-radius:10px;padding:12px;text-align:center}
+.cap-stat-val{font-family:'Bebas Neue';font-size:26px;letter-spacing:1px}
+.cap-stat-lbl{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.cur-box{background:var(--s2);border:2px solid var(--bd);border-radius:18px;padding:22px;text-align:center;transition:all .3s}
+.cur-box.active{border-color:var(--gold);box-shadow:0 0 28px rgba(255,215,0,.1)}
+.no-msg{color:var(--mut);font-size:14px;padding:48px 0}
+.cap-bid-btn{width:100%;margin-top:14px;padding:17px;border:none;border-radius:13px;color:#000;font-family:'Bebas Neue';font-size:22px;letter-spacing:3px;cursor:pointer;transition:all .2s}
+.cap-bid-btn:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 10px 28px rgba(255,215,0,.3)}
+.cap-bid-btn:disabled{opacity:.35;cursor:not-allowed}
 
-  ::-webkit-scrollbar { width:6px; }
-  ::-webkit-scrollbar-track { background:var(--surface); }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+.pg-wrap{padding:18px;max-width:1100px;margin:0 auto}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.fbtn{background:var(--s2);border:1px solid var(--bd);color:var(--mut);padding:5px 12px;border-radius:16px;cursor:pointer;font-size:12px;transition:all .2s}
+.fbtn.on,.fbtn:hover{border-color:var(--gold);color:var(--gold)}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.pc{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:13px;transition:all .2s}
+.pc:hover{border-color:#444}
+.pc.sold-pc{opacity:.52}
+.pc-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:11px;border:2px solid;margin-bottom:8px}
+.pc-name{font-family:'Rajdhani';font-weight:700;font-size:13px;margin-bottom:2px}
+.pc-role{font-size:10px;color:var(--mut);margin-bottom:6px}
+.pc-tbadge{font-size:9px;padding:2px 7px;border-radius:8px;background:var(--s1);display:inline-block}
+.pc-sold-tag{font-size:10px;color:var(--ok);font-weight:600;margin-top:4px}
+.pc-base{font-size:10px;color:var(--mut);margin-top:4px}
 
-  @media(max-width:768px) {
-    .auction-layout { grid-template-columns:1fr; }
-    .sidebar { max-height:300px; }
-    .player-name { font-size:28px; }
-    .bid-amount { font-size:40px; }
-    .nav-tab { padding:8px 10px; font-size:12px; }
-  }
+.teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;padding:18px;max-width:1100px;margin:0 auto}
+.team-fc{background:var(--s2);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.team-fc-hdr{padding:16px;display:flex;justify-content:space-between;align-items:center}
+.team-fc-name{font-family:'Bebas Neue';font-size:18px;letter-spacing:2px}
+.team-stats{display:flex;gap:8px;padding:0 16px 12px}
+.tstat{background:var(--s1);border-radius:7px;padding:7px 10px;flex:1;text-align:center}
+.tstat-v{font-family:'Rajdhani';font-weight:700;font-size:16px}
+.tstat-l{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px}
+.sq-list{padding:0 16px 16px}
+.sq-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)}
+.sq-row:last-child{border-bottom:none}
+.sq-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;border:1.5px solid;flex-shrink:0}
+.sq-info{flex:1}
+.sq-name{font-size:12px;font-weight:600}
+.sq-sub{font-size:10px;color:var(--mut)}
+.sq-price{font-family:'Rajdhani';font-weight:700;font-size:11px;color:var(--gold)}
+.mq-tag{font-size:8px;background:var(--gold);color:#000;padding:1px 4px;border-radius:3px;font-weight:700;letter-spacing:.5px;margin-left:3px}
+
+.viewer-wrap{padding:18px;max-width:1100px;margin:0 auto}
+.live-ticker{background:var(--s1);border-bottom:1px solid var(--bd);padding:9px 18px;display:flex;align-items:center;gap:10px}
+.live-dot{background:var(--ng);color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:1px;animation:pulse 1.5s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ticker-txt{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.done-wrap{text-align:center;padding:48px 24px}
+.done-trophy{font-size:70px;animation:bou 1s infinite alternate}
+@keyframes bou{from{transform:translateY(0)}to{transform:translateY(-10px)}}
+.done-title{font-family:'Bebas Neue';font-size:52px;letter-spacing:5px;color:var(--gold);margin:14px 0 6px}
+
+.squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.sq-card{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:13px}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+@media(max-width:700px){
+  .auction-wrap{grid-template-columns:1fr}
+  .sidebar{max-height:260px;border-left:none;border-top:1px solid var(--bd)}
+  .p-name{font-size:26px}
+  .bid-amt{font-size:36px}
+  .bid-grid{grid-template-columns:repeat(2,1fr)}
+  .cap-stats{grid-template-columns:repeat(2,1fr)}
+  .nav-btn{padding:11px 10px;font-size:12px}
+  .login-box{padding:36px 24px}
+}
 `;
 
-// ─── APP ─────────────────────────────────────────────────────────────────────
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState<"setup" | "auction" | "players" | "teams">("setup");
-  const [teams, setTeams] = useState<Team[]>(DEFAULT_TEAMS);
-  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
-  const [auctionQueue, setAuctionQueue] = useState<number[]>([]);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [currentBid, setCurrentBid] = useState(0);
-  const [currentBidder, setCurrentBidder] = useState<number | null>(null);
-  const [showSold, setShowSold] = useState(false);
-  const [bidLog, setBidLog] = useState<LogItem[]>([]);
-  const [filterTier, setFilterTier] = useState("All");
-  const [auctionDone, setAuctionDone] = useState(false);
-  const logRef = useRef<HTMLDivElement>(null);
+  const [role, setRole]     = useState<Role>("login");
+  const [myTeamId, setMyTeamId] = useState<number | null>(null);
 
-  const currentPlayer: Player | undefined =
-    auctionQueue.length > 0 ? players.find((p) => p.id === auctionQueue[currentIdx]) : undefined;
+  const [teams, setTeams]     = useShared<Team[]>("ca_teams",   INIT_TEAMS);
+  const [players, setPlayers] = useShared<Player[]>("ca_players", INIT_PLAYERS);
+  const [queue, setQueue]     = useShared<number[]>("ca_queue",  []);
+  const [curIdx, setCurIdx]   = useShared<number>("ca_idx",     0);
+  const [curBid, setCurBid]   = useShared<number>("ca_bid",     0);
+  const [curBidder, setCurBidder] = useShared<number | null>("ca_bidder", null);
+  const [aRound, setARound]   = useShared<number>("ca_round",   0);
+  const [phase, setPhase]     = useShared<"banner"|"running"|"done">("ca_phase", "banner");
+  const [showSold, setShowSold] = useShared<boolean>("ca_sold",  false);
+  const [log, setLog]         = useShared<LogItem[]>("ca_log",  []);
+  const [aDone, setADone]     = useShared<boolean>("ca_done",   false);
 
-  useEffect(() => {
-    if (currentPlayer && !showSold) {
-      setCurrentBid(currentPlayer.basePrice);
-      setCurrentBidder(null);
-    }
-  }, [currentIdx, auctionQueue]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addLog = (icon: string, text: string) => {
+    const time = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+    setLog(prev => [{ icon, text, time }, ...prev.slice(0, 59)]);
+  };
 
-  function addLog(icon: string, text: string) {
-    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    setBidLog((prev) => [{ icon, text, time }, ...prev.slice(0, 49)]);
-  }
+  const buildQ = (round: number): number[] => {
+    const sorted = [...players].sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
+    return round === 1 ? sorted.map(p => p.id) : sorted.filter(p => p.soldTo === null).map(p => p.id);
+  };
 
-  function startAuction() {
-    const order = ["World Class", "International", "Domestic Star", "Emerging"];
-    const sorted = [...players].sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier));
-    setAuctionQueue(sorted.map((p) => p.id));
-    setCurrentIdx(0);
-    setScreen("auction");
-    addLog("🎙️", "Auction has begun!");
-  }
+  const startRound = (round: number) => {
+    const q = buildQ(round);
+    setQueue(q);
+    setCurIdx(0);
+    setARound(round);
+    setPhase("running");
+    const first = players.find(p => p.id === q[0]);
+    if (first) { setCurBid(first.basePrice); setCurBidder(null); }
+    addLog("🎙️", `Round ${round} started! ${q.length} players in pool.`);
+  };
 
-  function placeBid(teamId: number) {
-    if (!currentPlayer) return;
-    const team = teams.find((t) => t.id === teamId);
-    if (!team) return;
-    const newBid = currentBidder ? currentBid + MIN_BID_INCREMENT : currentPlayer.basePrice;
-    if (team.purse < newBid) return;
-    setCurrentBid(newBid);
-    setCurrentBidder(teamId);
-    addLog("💰", `${team.short} bid ${fmt(newBid)} for ${currentPlayer.name}!`);
-  }
+  const curPlayer: Player | undefined =
+    queue.length > 0 ? players.find(p => p.id === queue[curIdx]) : undefined;
 
-  function markSold() {
-    if (!currentBidder || !currentPlayer) return;
-    const team = teams.find((t) => t.id === currentBidder);
-    if (!team) return;
-    const isMarquee = currentPlayer.tier === "World Class";
-    const soldEntry: SquadPlayer = { ...currentPlayer, soldPrice: currentBid, isMarquee };
-    setTeams((prev) =>
-      prev.map((t) =>
-        t.id === currentBidder
-          ? { ...t, purse: t.purse - currentBid, squad: [...t.squad, soldEntry], marqueeCount: isMarquee ? t.marqueeCount + 1 : t.marqueeCount }
-          : t
-      )
-    );
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === currentPlayer.id ? { ...p, soldTo: currentBidder, soldPrice: currentBid } : p))
-    );
-    addLog("🔨", `SOLD! ${currentPlayer.name} → ${team.short} for ${fmt(currentBid)}`);
-    setShowSold(true);
-    setTimeout(() => {
-      setShowSold(false);
-      advancePlayer();
-    }, 2000);
-  }
-
-  function markUnsold() {
-    if (!currentPlayer) return;
-    addLog("❌", `${currentPlayer.name} goes UNSOLD`);
-    advancePlayer();
-  }
-
-  function advancePlayer() {
-    const next = currentIdx + 1;
-    if (next >= auctionQueue.length) {
-      setAuctionDone(true);
-      addLog("🏆", "Auction Complete!");
-    } else {
-      setCurrentIdx(next);
-    }
-  }
-
-  function canTeamBid(team: Team): boolean {
-    if (showSold || !currentPlayer) return false;
+  const canBid = (team: Team): boolean => {
+    if (showSold || !curPlayer || phase !== "running") return false;
     if (team.squad.length >= MAX_SQUAD) return false;
-    if (currentPlayer.tier === "World Class" && team.marqueeCount >= MAX_MARQUEE) return false;
-    const nextBid = currentBidder ? currentBid + MIN_BID_INCREMENT : currentPlayer.basePrice;
-    if (team.purse < nextBid) return false;
-    if (team.id === currentBidder) return false;
+    if (curPlayer.tier === "World Class" && team.marqueeCount >= MAX_MARQUEE) return false;
+    const nb = curBidder !== null ? curBid + MIN_BID : curPlayer.basePrice;
+    if (team.purse < nb) return false;
+    if (team.id === curBidder) return false;
     return true;
-  }
+  };
 
-  const soldCount = players.filter((p) => p.soldTo !== null).length;
-  const progressPct = auctionQueue.length > 0 ? Math.round((currentIdx / auctionQueue.length) * 100) : 0;
-  const leadingTeam = currentBidder !== null ? teams.find((t) => t.id === currentBidder) : undefined;
+  const placeBid = (teamId: number) => {
+    if (!curPlayer) return;
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return;
+    const nb = curBidder !== null ? curBid + MIN_BID : curPlayer.basePrice;
+    if (team.purse < nb) return;
+    setCurBid(nb);
+    setCurBidder(teamId);
+    addLog("💰", `${team.short} bid ${fmt(nb)} for ${curPlayer.name}`);
+  };
 
-  // ── SETUP SCREEN ──────────────────────────────────────────────────────────
-  if (screen === "setup") {
-    return (
-      <div>
-        <style>{css}</style>
-        <div className="header">
-          <div className="header-logo">🏏 <span>CRICKET</span> AUCTION</div>
+  const doSold = () => {
+    if (curBidder === null || !curPlayer) return;
+    const team = teams.find(t => t.id === curBidder);
+    if (!team) return;
+    const isMarquee = curPlayer.tier === "World Class";
+    const sp: SquadPlayer = { ...curPlayer, soldPrice: curBid, isMarquee, round: aRound };
+    setTeams(prev => prev.map(t => t.id === curBidder
+      ? { ...t, purse: t.purse - curBid, squad: [...t.squad, sp], marqueeCount: isMarquee ? t.marqueeCount+1 : t.marqueeCount }
+      : t
+    ));
+    setPlayers(prev => prev.map(p => p.id === curPlayer.id ? { ...p, soldTo: curBidder, soldPrice: curBid, round: aRound } : p));
+    addLog("🔨", `SOLD! ${curPlayer.name} → ${team.short} for ${fmt(curBid)}`);
+    setShowSold(true);
+    setTimeout(() => { setShowSold(false); advance(); }, 2000);
+  };
+
+  const doUnsold = () => {
+    if (!curPlayer) return;
+    addLog("❌", `${curPlayer.name} UNSOLD (Round ${aRound})`);
+    advance();
+  };
+
+  const advance = () => {
+    const next = curIdx + 1;
+    if (next >= queue.length) {
+      if (aRound >= TOTAL_ROUNDS) { setADone(true); setPhase("done"); addLog("🏆","All 3 rounds done! Auction complete."); }
+      else { setPhase("banner"); addLog("🔔", `Round ${aRound} complete! ${players.filter(p=>p.soldTo===null).length} players unsold.`); }
+    } else {
+      setCurIdx(next);
+      const np = players.find(p => p.id === queue[next]);
+      if (np) { setCurBid(np.basePrice); setCurBidder(null); }
+    }
+  };
+
+  const resetAll = () => {
+    if (!window.confirm("Reset ALL auction data? This cannot be undone.")) return;
+    setTeams(INIT_TEAMS); setPlayers(INIT_PLAYERS); setQueue([]); setCurIdx(0);
+    setCurBid(0); setCurBidder(null); setARound(0); setPhase("banner");
+    setShowSold(false); setLog([]); setADone(false);
+  };
+
+  const logout = () => { setRole("login"); setMyTeamId(null); };
+  const myTeam = myTeamId !== null ? teams.find(t => t.id === myTeamId) : undefined;
+  const leadTeam = curBidder !== null ? teams.find(t => t.id === curBidder) : undefined;
+  const soldCount = players.filter(p => p.soldTo !== null).length;
+  const progPct = queue.length > 0 ? Math.round((curIdx / queue.length) * 100) : 0;
+
+  return (
+    <>
+      <style>{CSS}</style>
+      {role === "login" && (
+        <LoginScreen teams={teams} onLogin={(r, tid) => { setRole(r); if (tid !== undefined) setMyTeamId(tid); }} />
+      )}
+      {role === "admin" && (
+        <AdminView
+          teams={teams} players={players} curPlayer={curPlayer} curBid={curBid}
+          curBidder={curBidder} aRound={aRound} phase={phase} showSold={showSold}
+          log={log} aDone={aDone} soldCount={soldCount} progPct={progPct}
+          leadTeam={leadTeam} queue={queue} curIdx={curIdx}
+          onBid={placeBid} onSold={doSold} onUnsold={doUnsold}
+          onStartRound={startRound} onLogout={logout} onReset={resetAll} canBid={canBid}
+        />
+      )}
+      {role === "captain" && myTeam !== undefined && (
+        <CaptainView
+          myTeam={myTeam} teams={teams} curPlayer={curPlayer} curBid={curBid}
+          curBidder={curBidder} phase={phase} aRound={aRound} log={log}
+          onBid={placeBid} onLogout={logout} canBid={canBid(myTeam)}
+        />
+      )}
+      {role === "viewer" && (
+        <ViewerView
+          teams={teams} players={players} curPlayer={curPlayer} curBid={curBid}
+          leadTeam={leadTeam} phase={phase} aRound={aRound} onLogout={logout}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function LoginScreen({ teams, onLogin }: { teams: Team[]; onLogin: (r: Role, tid?: number) => void }) {
+  const [sel, setSel] = useState<Role | null>(null);
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+
+  const tryLogin = () => {
+    setErr("");
+    if (!sel) return;
+    if (sel === "viewer") { onLogin("viewer"); return; }
+    if (sel === "admin") {
+      if (pass === ADMIN_PASS) onLogin("admin");
+      else setErr("Wrong admin password");
+      return;
+    }
+    if (sel === "captain") {
+      const team = teams.find(t => t.captainPass === pass);
+      if (team) onLogin("captain", team.id);
+      else setErr("Wrong captain password");
+    }
+  };
+
+  const roles: Array<{ r: Role; ic: string; nm: string; hn: string }> = [
+    { r:"admin",   ic:"🎙️", nm:"Admin",   hn:"Controls auction" },
+    { r:"captain", ic:"👑", nm:"Captain", hn:"Bid for players"  },
+    { r:"viewer",  ic:"👁️", nm:"Viewer",  hn:"Watch live"       },
+  ];
+
+  return (
+    <div className="login-wrap">
+      <div className="login-box">
+        <div className="inp">PARSTRIKER AUCTION</div>
+        <div className="login-sub">Select your role to enter the auction room</div>
+        <div className="role-grid" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
+          {roles.map(({ r, ic, nm, hn }) => (
+            <div key={r} className={`role-btn ${sel===r?"sel":""}`} onClick={() => { setSel(r); setPass(""); setErr(""); }}>
+              <div className="role-icon">{ic}</div>
+              <div className="role-name">{nm}</div>
+              <div className="role-hint">{hn}</div>
+            </div>
+          ))}
         </div>
-        <div className="setup-screen">
-          <div className="setup-title">IPL <span>AUCTION</span></div>
-          <p className="setup-sub">Enter captain names for each team, then start the auction!</p>
-          <div className="team-grid">
-            {teams.map((team) => (
-              <div key={team.id} className="team-setup-card">
-                <div className="team-color-bar" style={{ background: `linear-gradient(90deg,${team.color},${team.accent})` }} />
-                <div className="team-setup-name">{team.name}</div>
-                <div className="team-short">{team.short} · Purse: {fmt(PURSE)}</div>
-                <div className="input-label">Captain Name</div>
-                <input
-                  className="input-field"
-                  placeholder="Enter captain name..."
-                  value={team.captain}
-                  onChange={(e) => setTeams((prev) => prev.map((t) => (t.id === team.id ? { ...t, captain: e.target.value } : t)))}
-                />
+        {err && <div className="err-msg">{err}</div>}
+        {sel && sel !== "viewer" && (
+          <input className="inp" type="password"
+            placeholder={sel === "admin" ? "Enter admin password" : "Enter captain password (e.g. mi123)"}
+            value={pass} onChange={e => setPass(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && tryLogin()} />
+        )}
+        {sel === "viewer" && <div style={{color:"var(--mut)",fontSize:13,marginBottom:12}}>No password required for viewers</div>}
+        <button className="go-btn" disabled={!sel} onClick={tryLogin}>ENTER</button>
+        <div className="hint-txt">
+          copyright &copy; 2024 · made with ❤️ by Kirpane
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+function AdminView(props: {
+  teams: Team[]; players: Player[]; curPlayer: Player | undefined; curBid: number;
+  curBidder: number | null; aRound: number; phase: "banner"|"running"|"done";
+  showSold: boolean; log: LogItem[]; aDone: boolean; soldCount: number;
+  progPct: number; leadTeam: Team | undefined; queue: number[]; curIdx: number;
+  onBid: (id: number) => void; onSold: () => void; onUnsold: () => void;
+  onStartRound: (r: number) => void; onLogout: () => void; onReset: () => void;
+  canBid: (t: Team) => boolean;
+}) {
+  const { teams, players, curPlayer, curBid, curBidder, aRound, phase, showSold,
+          log, aDone, soldCount, progPct, leadTeam, queue, curIdx,
+          onBid, onSold, onUnsold, onStartRound, onLogout, onReset, canBid } = props;
+  const [tab, setTab] = useState<"auction"|"players"|"teams">("auction");
+  const [filter, setFilter] = useState("All");
+
+  return (
+    <div>
+      <div className="hdr">
+        <div className="hdr-logo">🏏 <span>ADMIN PANEL</span></div>
+        <div className="hdr-right">
+          <span className="role-pill" style={{background:"rgba(255,215,0,.15)",color:"var(--gold)"}}>🎙️ ADMIN</span>
+          <button className="logout-btn" onClick={onLogout}>Logout</button>
+          <button className="reset-btn" onClick={onReset}>Reset All</button>
+        </div>
+      </div>
+      <div className="nav-bar">
+        {(["auction","players","teams"] as const).map(t => (
+          <button key={t} className={`nav-btn ${tab===t?"active":""}`} onClick={() => setTab(t)}>
+            {t==="auction"?"🔨 AUCTION CONTROL":t==="players"?"🏏 ALL PLAYERS":"🏆 TEAM SQUADS"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "auction" && (
+        aDone ? <DoneScreen teams={teams} /> :
+        phase === "banner" ? (
+          <div style={{padding:"24px 16px"}}>
+            <div className="round-banner">
+              <div className="rb-eyebrow">{aRound === 0 ? "WELCOME TO THE" : `ROUND ${aRound} COMPLETE`}</div>
+              <div className="rb-title">{aRound === 0 ? "Parstrikers AUCTION" : `ROUND ${aRound+1}`}</div>
+              <div className="rb-desc">
+                {aRound === 0
+                  ? `${players.length} players · ${TOTAL_ROUNDS} rounds · ${teams.length} teams · Purse ${fmt(PURSE)} each`
+                  : `${players.filter(p=>p.soldTo===null).length} unsold players re-enter · Round ${aRound+1} of ${TOTAL_ROUNDS}`}
               </div>
+              <button className="rb-btn" onClick={() => onStartRound(aRound+1)}>
+                {aRound === 0 ? "⚡ START AUCTION" : `▶ BEGIN ROUND ${aRound+1}`}
+              </button>
+            </div>
+            <div className="teams-grid" style={{marginTop:8}}>
+              {teams.map(t => <TeamCard key={t.id} team={t} />)}
+            </div>
+          </div>
+        ) : (
+          <div className="auction-wrap">
+            <div className="stage">
+              <div className="stage-top">
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div className="round-pill">ROUND {aRound}/{TOTAL_ROUNDS}</div>
+                  <div style={{fontSize:11,color:"var(--mut)"}}>Sold: {soldCount}/{players.length}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"var(--mut)",marginBottom:3}}>Player {curIdx+1}/{queue.length}</div>
+                  <div className="prog-bar"><div className="prog-fill" style={{width:`${progPct}%`}} /></div>
+                </div>
+              </div>
+
+              {curPlayer && (
+                <>
+                  <div className="spotlight">
+                    {showSold && (
+                      <div className="sold-ov">
+                        <div className="sold-ov-txt">SOLD!</div>
+                        <div className="sold-ov-to">to {leadTeam?.name ?? ""}</div>
+                        <div className="sold-ov-price">{fmt(curBid)}</div>
+                      </div>
+                    )}
+                    <div className="tier-tag" style={{color:tierColor(curPlayer.tier),borderColor:`${tierColor(curPlayer.tier)}44`}}>
+                      {TIERS[curPlayer.tier]?.badge ?? "◆"} {curPlayer.tier}
+                    </div>
+                    <div className="p-avatar" style={{borderColor:tierColor(curPlayer.tier),background:`${tierColor(curPlayer.tier)}18`,color:tierColor(curPlayer.tier)}}>
+                      {curPlayer.img}
+                    </div>
+                    <div className="p-name">{curPlayer.name}</div>
+                    <div className="p-meta">
+                      <span className="chip">🏏 {curPlayer.role}</span>
+                      <span className="chip">🌍 {curPlayer.country}</span>
+                      <span className="chip">Base: {fmt(curPlayer.basePrice)}</span>
+                    </div>
+                    <div className="bid-box">
+                      <div className="bid-lbl">{curBidder !== null ? "Current Bid" : "Opening Price"}</div>
+                      <div className="bid-amt">{fmt(curBid)}</div>
+                      <div className="bid-sub">+{fmt(MIN_BID)} per raise</div>
+                      {leadTeam && <div className="bid-leader" style={{color:leadTeam.color}}>🔥 {leadTeam.name} leading</div>}
+                    </div>
+                  </div>
+
+                  <div className="bid-grid">
+                    {teams.map(team => {
+                      const able = canBid(team);
+                      const isLead = team.id === curBidder;
+                      const nb = curBidder !== null ? curBid + MIN_BID : curPlayer.basePrice;
+                      return (
+                        <button key={team.id} className="tbid-btn" disabled={!able}
+                          style={{borderColor:isLead?team.color:"var(--bd)",background:isLead?`${team.color}20`:"var(--s2)",color:isLead?team.color:"var(--txt)"}}
+                          onClick={() => onBid(team.id)}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span className="tbadge" style={{background:`${team.color}22`,color:team.color}}>{team.short}</span>
+                            {able && <span style={{fontSize:10,color:"var(--gold)",fontFamily:"'Bebas Neue'"}}>{fmt(nb)}</span>}
+                          </div>
+                          <div style={{fontSize:9,opacity:.55,marginTop:2}}>{fmt(team.purse)} left</div>
+                          {isLead && <div style={{fontSize:9,color:"var(--ok)",marginTop:1}}>● LEADING</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="act-row">
+                    <button className="sold-btn" disabled={curBidder===null||showSold} onClick={onSold}>🔨 SOLD</button>
+                    <button className="unsold-btn" disabled={showSold} onClick={onUnsold}>❌ UNSOLD</button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="sidebar">
+              <div className="sb-sec">
+                <div className="sb-title">Team Purses</div>
+                {teams.map(team => {
+                  const pct = (team.purse / PURSE) * 100;
+                  return (
+                    <div key={team.id} className={`tc ${team.id===curBidder?"leading":""}`}>
+                      <div className="tc-row">
+                        <span className="tbadge" style={{background:team.color,color:"#fff"}}>{team.short}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:pct<20?"var(--ng)":"var(--gold)"}}>{fmt(team.purse)}</span>
+                      </div>
+                      <div className="pb-out"><div className="pb-in" style={{width:`${pct}%`,background:pct<20?"var(--ng)":team.color}} /></div>
+                      <div className="sq-cnt">Squad {team.squad.length}/{MAX_SQUAD} · Marquee {team.marqueeCount}/{MAX_MARQUEE}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="sb-sec">
+                <div className="sb-title">Bid Log</div>
+                <div className="log-scroll">
+                  {log.length === 0 && <div style={{color:"var(--mut)",fontSize:11,padding:"4px 0"}}>No activity yet</div>}
+                  {log.map((l,i) => (
+                    <div key={i} className="log-row">
+                      <span className="log-ic">{l.icon}</span>
+                      <div style={{flex:1}}>
+                        <div className="log-txt">{l.text}</div>
+                        <div className="log-time">{l.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      )}
+
+      {tab === "players" && (
+        <div className="pg-wrap">
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2}}>Player Pool</div>
+            <div style={{fontSize:12,color:"var(--mut)"}}>{soldCount} sold · {players.length-soldCount} available</div>
+          </div>
+          <div className="filter-row">
+            {["All","Available","Sold",...Object.keys(TIERS)].map(f => (
+              <button key={f} className={`fbtn ${filter===f?"on":""}`} onClick={() => setFilter(f)}>{f}</button>
             ))}
           </div>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, marginBottom: 24 }}>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-              {Object.entries(SKILL_TIERS).map(([tier, data]) => (
-                <div key={tier} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: data.color, fontSize: 16 }}>{data.badge}</span>
-                  <span style={{ fontSize: 13 }}>{tier}</span>
-                  <span style={{ fontSize: 12, color: "var(--muted)" }}>Base: {fmt(data.basePrice)}</span>
+          <div className="pg-grid">
+            {players.filter(p => {
+              if (filter === "Available") return p.soldTo === null;
+              if (filter === "Sold") return p.soldTo !== null;
+              if (filter === "All") return true;
+              return p.tier === filter;
+            }).map(p => {
+              const st = p.soldTo !== null ? teams.find(t => t.id === p.soldTo) : undefined;
+              return (
+                <div key={p.id} className={`pc ${p.soldTo!==null?"sold-pc":""}`}>
+                  <div className="pc-av" style={{borderColor:tierColor(p.tier),background:`${tierColor(p.tier)}18`,color:tierColor(p.tier)}}>{p.img.slice(0,2)}</div>
+                  <div className="pc-name">{p.name}</div>
+                  <div className="pc-role">{p.role} · {p.country}</div>
+                  <div className="pc-tbadge" style={{color:tierColor(p.tier)}}>{TIERS[p.tier]?.badge} {p.tier}</div>
+                  {st ? <div className="pc-sold-tag">✓ {st.short} · {fmt(p.soldPrice??0)} · R{p.round}</div>
+                      : <div className="pc-base">Base: {fmt(p.basePrice)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "teams" && (
+        <div className="teams-grid">{teams.map(t => <TeamCard key={t.id} team={t} />)}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── CAPTAIN ──────────────────────────────────────────────────────────────────
+function CaptainView(props: {
+  myTeam: Team; teams: Team[]; curPlayer: Player | undefined; curBid: number;
+  curBidder: number | null; phase: "banner"|"running"|"done"; aRound: number;
+  log: LogItem[]; onBid: (id: number) => void; onLogout: () => void; canBid: boolean;
+}) {
+  const { myTeam, curPlayer, curBid, curBidder, phase, aRound, log, onBid, onLogout, canBid } = props;
+  const [tab, setTab] = useState<"bid"|"squad"|"log">("bid");
+  const isLeading = curBidder === myTeam.id;
+  const pctLeft = (myTeam.purse / PURSE) * 100;
+  const nextBid = curBidder !== null ? curBid + MIN_BID : curPlayer?.basePrice ?? 0;
+  const myLogs = log.filter(l => l.text.includes(myTeam.short));
+
+  return (
+    <div>
+      <div className="hdr">
+        <div className="hdr-logo">🏏 <span style={{color:myTeam.color}}>{myTeam.short}</span> · {myTeam.name}</div>
+        <div className="hdr-right">
+          <span className="role-pill" style={{background:`${myTeam.color}22`,color:myTeam.color}}>👑 CAPTAIN</span>
+          <button className="logout-btn" onClick={onLogout}>Logout</button>
+        </div>
+      </div>
+      <div className="nav-bar">
+        <button className={`nav-btn ${tab==="bid"?"active":""}`} onClick={() => setTab("bid")}>🔨 LIVE BID</button>
+        <button className={`nav-btn ${tab==="squad"?"active":""}`} onClick={() => setTab("squad")}>🏏 MY SQUAD ({myTeam.squad.length})</button>
+        <button className={`nav-btn ${tab==="log"?"active":""}`} onClick={() => setTab("log")}>📋 MY ACTIVITY</button>
+      </div>
+
+      {tab === "bid" && (
+        <div className="cap-wrap">
+          <div className="cap-stats">
+            <div className="cap-stat">
+              <div className="cap-stat-val" style={{color:"var(--gold)"}}>{fmt(myTeam.purse)}</div>
+              <div className="cap-stat-lbl">Purse Left</div>
+              <div style={{background:"var(--bd)",borderRadius:3,height:3,marginTop:6}}>
+                <div style={{height:"100%",borderRadius:3,background:pctLeft<20?"var(--ng)":myTeam.color,width:`${pctLeft}%`,transition:"width .5s"}} />
+              </div>
+            </div>
+            <div className="cap-stat">
+              <div className="cap-stat-val">{myTeam.squad.length}/{MAX_SQUAD}</div>
+              <div className="cap-stat-lbl">Squad Size</div>
+            </div>
+            <div className="cap-stat">
+              <div className="cap-stat-val">{myTeam.marqueeCount}/{MAX_MARQUEE}</div>
+              <div className="cap-stat-lbl">Marquee</div>
+            </div>
+            <div className="cap-stat">
+              <div className="cap-stat-val" style={{color:"var(--warn)"}}>{aRound > 0 ? `R${aRound}` : "—"}</div>
+              <div className="cap-stat-lbl">Round</div>
+            </div>
+          </div>
+
+          <div className={`cur-box ${phase==="running"&&curPlayer?"active":""}`}>
+            {phase === "banner" && <div className="no-msg">⏳ Waiting for admin to start the auction...</div>}
+            {phase === "done"   && <div className="no-msg">🏆 Auction complete! Check your squad tab.</div>}
+            {phase === "running" && !curPlayer && <div className="no-msg">Loading next player...</div>}
+            {phase === "running" && curPlayer && (
+              <>
+                <div className="tier-tag" style={{color:tierColor(curPlayer.tier),borderColor:`${tierColor(curPlayer.tier)}44`,border:"1px solid",display:"inline-flex",alignItems:"center",gap:6,padding:"4px 13px",borderRadius:20,marginBottom:14,fontSize:11,fontWeight:600,letterSpacing:1}}>
+                  {TIERS[curPlayer.tier]?.badge} {curPlayer.tier}
+                </div>
+                <div style={{width:80,height:80,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:20,margin:"0 auto 10px",border:`3px solid ${tierColor(curPlayer.tier)}`,background:`${tierColor(curPlayer.tier)}18`,color:tierColor(curPlayer.tier)}}>
+                  {curPlayer.img}
+                </div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:2,marginBottom:8}}>{curPlayer.name}</div>
+                <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                  <span className="chip">{curPlayer.role}</span>
+                  <span className="chip">{curPlayer.country}</span>
+                  <span className="chip">Base {fmt(curPlayer.basePrice)}</span>
+                </div>
+                <div style={{background:"var(--s1)",borderRadius:12,padding:14,marginBottom:4}}>
+                  <div style={{fontSize:10,color:"var(--mut)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:2}}>
+                    {isLeading ? "🔥 YOU ARE LEADING — Hold or raise" : curBidder !== null ? "Bid in progress" : "Opening Price"}
+                  </div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:46,color:isLeading?"var(--ok)":"var(--gold)",lineHeight:1}}>{fmt(curBid)}</div>
+                  {!isLeading && curBidder !== null && (
+                    <div style={{fontSize:12,color:"var(--ng)",marginTop:4}}>⚠ Another team is leading!</div>
+                  )}
+                </div>
+                <button
+                  className="cap-bid-btn"
+                  style={{background:isLeading?"linear-gradient(135deg,var(--ok),#00b36b)":"linear-gradient(135deg,var(--gold),#ffa500)"}}
+                  disabled={!canBid}
+                  onClick={() => onBid(myTeam.id)}
+                >
+                  {isLeading ? `✓ LEADING AT ${fmt(curBid)}` : canBid ? `BID ${fmt(nextBid)}` : "CANNOT BID"}
+                </button>
+                {!canBid && !isLeading && (
+                  <div style={{fontSize:11,color:"var(--mut)",marginTop:8}}>
+                    {myTeam.purse < nextBid ? "⚠ Insufficient purse" :
+                     myTeam.squad.length >= MAX_SQUAD ? "⚠ Squad full" :
+                     curPlayer.tier === "World Class" && myTeam.marqueeCount >= MAX_MARQUEE ? "⚠ Marquee slots full" :
+                     "Bidding paused"}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "squad" && (
+        <div className="cap-wrap">
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2}}>{myTeam.name} Squad</div>
+            <div style={{fontSize:12,color:"var(--mut)"}}>{myTeam.squad.length} players · Spent: {fmt(PURSE - myTeam.purse)} · Remaining: {fmt(myTeam.purse)}</div>
+          </div>
+          {myTeam.squad.length === 0 ? (
+            <div style={{color:"var(--mut)",textAlign:"center",padding:"60px 0"}}>No players acquired yet</div>
+          ) : (
+            <div className="squad-grid">
+              {myTeam.squad.map(p => (
+                <div key={p.id} className="sq-card">
+                  <div style={{width:42,height:42,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:11,border:`2px solid ${tierColor(p.tier)}`,background:`${tierColor(p.tier)}18`,color:tierColor(p.tier),marginBottom:9}}>
+                    {p.img.slice(0,2)}
+                  </div>
+                  <div style={{fontFamily:"'Rajdhani'",fontWeight:700,fontSize:13,marginBottom:2}}>{p.name} {p.isMarquee&&<span className="mq-tag">M</span>}</div>
+                  <div style={{fontSize:10,color:"var(--mut)",marginBottom:5}}>{p.role} · {p.country}</div>
+                  <div style={{fontFamily:"'Rajdhani'",fontWeight:700,fontSize:13,color:"var(--gold)"}}>{fmt(p.soldPrice)} · R{p.round}</div>
                 </div>
               ))}
             </div>
-          </div>
-          <button className="start-btn" onClick={startAuction}>⚡ START AUCTION</button>
+          )}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // ── COMPLETE SCREEN ───────────────────────────────────────────────────────
-  if (auctionDone) {
-    return (
-      <div>
-        <style>{css}</style>
-        <div className="header">
-          <div className="header-logo">🏏 <span>CRICKET</span> AUCTION</div>
-          <div className="nav-tabs">
-            <button className={`nav-tab ${screen === "teams" ? "active" : ""}`} onClick={() => setScreen("teams")}>Teams</button>
-            <button className={`nav-tab ${screen === "players" ? "active" : ""}`} onClick={() => setScreen("players")}>Players</button>
-          </div>
+      {tab === "log" && (
+        <div className="cap-wrap">
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,marginBottom:14}}>My Activity</div>
+          {myLogs.length === 0 ? (
+            <div style={{color:"var(--mut)",textAlign:"center",padding:"60px 0"}}>No activity for {myTeam.short} yet</div>
+          ) : (
+            myLogs.map((l,i) => (
+              <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bd)"}}>
+                <span style={{fontSize:18}}>{l.icon}</span>
+                <div>
+                  <div style={{fontSize:13}}>{l.text}</div>
+                  <div style={{fontSize:10,color:"var(--mut)"}}>{l.time}</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-        {screen !== "players" ? (
-          <div className="teams-screen">
-            <div className="complete-screen" style={{ minHeight: "auto", paddingBottom: 0 }}>
-              <div className="trophy">🏆</div>
-              <div className="complete-title">AUCTION COMPLETE</div>
-              <p style={{ color: "var(--muted)", marginBottom: 40 }}>All squads are set. Let the tournament begin!</p>
-            </div>
-            <div className="teams-grid">{teams.map((team) => <TeamCard key={team.id} team={team} />)}</div>
-          </div>
-        ) : (
-          <PlayersScreen players={players} teams={teams} filterTier={filterTier} setFilterTier={setFilterTier} />
-        )}
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
+}
 
-  // ── MAIN SCREENS ──────────────────────────────────────────────────────────
+// ─── VIEWER ───────────────────────────────────────────────────────────────────
+function ViewerView(props: {
+  teams: Team[]; players: Player[]; curPlayer: Player | undefined; curBid: number;
+  leadTeam: Team | undefined; phase: "banner"|"running"|"done"; aRound: number;
+  onLogout: () => void;
+}) {
+  const { teams, players, curPlayer, curBid, leadTeam, phase, aRound, onLogout } = props;
+  const [tab, setTab] = useState<"live"|"teams"|"players">("live");
+  const soldCount = players.filter(p => p.soldTo !== null).length;
+
+  // Auto-refresh viewer every 3s to pick up changes from other tabs
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 3000);
+    return () => clearInterval(iv);
+  }, []);
+
   return (
     <div>
-      <style>{css}</style>
-      <div className="header">
-        <div className="header-logo">🏏 <span>CRICKET</span> AUCTION</div>
-        <div className="nav-tabs">
-          <button className={`nav-tab ${screen === "auction" ? "active" : ""}`} onClick={() => setScreen("auction")}>🔨 Auction</button>
-          <button className={`nav-tab ${screen === "players" ? "active" : ""}`} onClick={() => setScreen("players")}>Players</button>
-          <button className={`nav-tab ${screen === "teams" ? "active" : ""}`} onClick={() => setScreen("teams")}>Teams</button>
+      <div className="hdr">
+        <div className="hdr-logo">🏏 <span>IPL AUCTION</span></div>
+        <div className="hdr-right">
+          <span className="role-pill" style={{background:"rgba(79,195,247,.12)",color:"#4fc3f7"}}>👁️ VIEWER</span>
+          <button className="logout-btn" onClick={onLogout}>Exit</button>
         </div>
       </div>
 
-      {screen === "auction" && (
-        <div className="auction-layout">
-          {/* STAGE */}
-          <div className="stage">
-            <div className="stage-header">
-              <div className="progress-info">
-                Player {currentIdx + 1} of {auctionQueue.length}
-                <div className="progress-bar-outer">
-                  <div className="progress-bar-inner" style={{ width: `${progressPct}%` }} />
-                </div>
-              </div>
-              <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 12px", background: "var(--card)", borderRadius: 8 }}>
-                Sold: {soldCount}/{players.length}
-              </div>
+      {phase === "running" && curPlayer && (
+        <div className="live-ticker">
+          <span className="live-dot">LIVE</span>
+          <span className="ticker-txt">
+            On stage: <b style={{color:"var(--txt)"}}>{curPlayer.name}</b>
+            {" · "}Bid: <b style={{color:"var(--gold)"}}>{fmt(curBid)}</b>
+            {leadTeam && <span> · Leading: <b style={{color:leadTeam.color}}>{leadTeam.name}</b></span>}
+            {" · "}Round {aRound}/{TOTAL_ROUNDS}
+            {" · "}Sold: {soldCount}/{players.length}
+          </span>
+        </div>
+      )}
+
+      <div className="nav-bar">
+        <button className={`nav-btn ${tab==="live"?"active":""}`} onClick={() => setTab("live")}>📡 LIVE STAGE</button>
+        <button className={`nav-btn ${tab==="teams"?"active":""}`} onClick={() => setTab("teams")}>🏆 TEAM SQUADS</button>
+        <button className={`nav-btn ${tab==="players"?"active":""}`} onClick={() => setTab("players")}>🏏 ALL PLAYERS</button>
+      </div>
+
+      {tab === "live" && (
+        <div className="viewer-wrap">
+          {phase !== "running" && (
+            <div style={{textAlign:"center",padding:"80px 24px",color:"var(--mut)"}}>
+              <div style={{fontSize:48,marginBottom:16}}>{phase==="done"?"🏆":"⏳"}</div>
+              <div style={{fontSize:16}}>{phase==="done"?"Auction complete! Check Team Squads.":"Auction hasn't started yet."}</div>
             </div>
-
-            {currentPlayer ? (
-              <>
-                <div className="player-spotlight">
-                  {showSold && (
-                    <div className="sold-overlay">
-                      <div className="sold-text">SOLD!</div>
-                      <div className="sold-to">to {leadingTeam?.name ?? ""}</div>
-                      <div className="sold-price-tag">{fmt(currentBid)}</div>
-                    </div>
-                  )}
-                  <div className="tier-badge" style={{ color: avatarBg(currentPlayer.tier), border: `1px solid ${avatarBg(currentPlayer.tier)}44` }}>
-                    {SKILL_TIERS[currentPlayer.tier]?.badge ?? "◆"} {currentPlayer.tier}
-                  </div>
-                  <div className="player-avatar" style={{ borderColor: avatarBg(currentPlayer.tier), background: `${avatarBg(currentPlayer.tier)}22`, color: avatarBg(currentPlayer.tier) }}>
-                    {currentPlayer.img}
-                  </div>
-                  <div className="player-name">{currentPlayer.name}</div>
-                  <div className="player-meta">
-                    <span className="meta-chip">🏏 {currentPlayer.role}</span>
-                    <span className="meta-chip">🌍 {currentPlayer.country}</span>
-                    <span className="meta-chip">📋 Base: {fmt(currentPlayer.basePrice)}</span>
-                  </div>
-                  <div className="current-bid-box">
-                    <div className="bid-label">{currentBidder !== null ? "Current Bid" : "Base Price"}</div>
-                    <div className="bid-amount">{fmt(currentBid)}</div>
-                    <div className="bid-unit">+{fmt(MIN_BID_INCREMENT)} per raise</div>
-                    {leadingTeam && (
-                      <div className="bidding-team" style={{ color: leadingTeam.color }}>
-                        🔥 {leadingTeam.name} is leading
-                      </div>
-                    )}
-                  </div>
+          )}
+          {phase === "running" && curPlayer && (
+            <div style={{maxWidth:480,margin:"0 auto",padding:"8px 0"}}>
+              <div className="spotlight" style={{marginBottom:16}}>
+                <div className="tier-tag" style={{color:tierColor(curPlayer.tier),borderColor:`${tierColor(curPlayer.tier)}44`,border:"1px solid",display:"inline-flex",gap:6,padding:"4px 13px",borderRadius:20,marginBottom:14,fontSize:11,fontWeight:600,letterSpacing:1}}>
+                  {TIERS[curPlayer.tier]?.badge} {curPlayer.tier}
                 </div>
-
-                <div className="bid-actions">
-                  {teams.map((team) => {
-                    const able = canTeamBid(team);
-                    const isLeading = team.id === currentBidder;
-                    const nextBid = currentBidder !== null ? currentBid + MIN_BID_INCREMENT : currentPlayer.basePrice;
-                    return (
-                      <button
-                        key={team.id}
-                        className="team-bid-btn"
-                        disabled={!able}
-                        style={{
-                          background: isLeading ? `${team.color}33` : "var(--card)",
-                          borderColor: isLeading ? team.color : "var(--border)",
-                          color: isLeading ? team.color : "var(--text)",
-                        }}
-                        onClick={() => placeBid(team.id)}
-                      >
-                        <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span>
-                            <span className="team-badge" style={{ background: `${team.color}22`, color: team.color }}>{team.short}</span>
-                            {isLeading && " 🔥"}
-                          </span>
-                          {able && <span style={{ fontSize: 13, color: "var(--gold)", fontFamily: "'Bebas Neue'" }}>{fmt(nextBid)}</span>}
-                        </span>
-                        <span className="team-name-sm">{team.captain || team.name}</span>
-                        <span className="team-purse-sm">Purse: {fmt(team.purse)} · Squad: {team.squad.length}/{MAX_SQUAD}</span>
-                      </button>
-                    );
-                  })}
+                <div style={{width:78,height:78,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:18,margin:"0 auto 10px",border:`3px solid ${tierColor(curPlayer.tier)}`,background:`${tierColor(curPlayer.tier)}18`,color:tierColor(curPlayer.tier)}}>
+                  {curPlayer.img}
                 </div>
-
-                <div className="action-row">
-                  <button className="sold-btn" onClick={markSold} disabled={currentBidder === null || showSold}>🔨 SOLD</button>
-                  <button className="unsold-btn" onClick={markUnsold} disabled={showSold}>❌ UNSOLD</button>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:36,letterSpacing:3,marginBottom:8}}>{curPlayer.name}</div>
+                <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+                  <span className="chip">{curPlayer.role}</span>
+                  <span className="chip">{curPlayer.country}</span>
+                  <span className="chip">Base {fmt(curPlayer.basePrice)}</span>
                 </div>
-              </>
-            ) : (
-              <div style={{ textAlign: "center", padding: "80px 24px", color: "var(--muted)" }}>
-                <div style={{ fontSize: 48 }}>🏏</div>
-                <div style={{ fontSize: 16, marginTop: 16 }}>No player in queue</div>
+                <div style={{background:"var(--s1)",borderRadius:12,padding:16}}>
+                  <div style={{fontSize:10,color:"var(--mut)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:2}}>Current Bid</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:50,color:"var(--gold)",lineHeight:1}}>{fmt(curBid)}</div>
+                  {leadTeam && <div style={{fontFamily:"'Rajdhani'",fontWeight:700,fontSize:15,marginTop:6,color:leadTeam.color}}>🔥 {leadTeam.name}</div>}
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* SIDEBAR */}
-          <div className="sidebar">
-            <div className="sidebar-section">
-              <div className="sidebar-title">Team Purses</div>
-              {teams.map((team) => {
-                const pctLeft = (team.purse / PURSE) * 100;
-                const isLeading = team.id === currentBidder;
-                return (
-                  <div key={team.id} className={`team-card ${isLeading ? "active-bidder" : ""}`}>
-                    <div className="team-card-header">
-                      <div>
-                        <span className="team-badge" style={{ background: team.color, color: "#fff" }}>{team.short}</span>
-                        {team.captain && <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>{team.captain}</span>}
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: pctLeft < 20 ? "var(--danger)" : "var(--gold)" }}>{fmt(team.purse)}</span>
-                    </div>
-                    <div className="purse-bar">
-                      <div className="purse-outer">
-                        <div className="purse-inner" style={{ width: `${pctLeft}%`, background: pctLeft < 20 ? "var(--danger)" : team.color }} />
-                      </div>
-                    </div>
-                    <div className="squad-count">Squad: {team.squad.length}/{MAX_SQUAD} · Marquee: {team.marqueeCount}/{MAX_MARQUEE}</div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="sidebar-section">
-              <div className="sidebar-title">Bid Log</div>
-              <div className="bid-log" ref={logRef}>
-                {bidLog.length === 0 && <div style={{ color: "var(--muted)", fontSize: 12 }}>No bids yet...</div>}
-                {bidLog.map((log, i) => (
-                  <div key={i} className="log-item">
-                    <span className="log-icon">{log.icon}</span>
-                    <div>
-                      <div className="log-text">{log.text}</div>
-                      <div className="log-time">{log.time}</div>
-                    </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
+                {teams.map(t => (
+                  <div key={t.id} style={{background:"var(--s2)",borderRadius:10,padding:"9px 8px",textAlign:"center",border:`1px solid ${t.id===leadTeam?.id?t.color:"var(--bd)"}`,transition:"all .3s"}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:t.color,letterSpacing:1}}>{t.short}</div>
+                    <div style={{fontSize:11,color:"var(--gold)",fontWeight:600}}>{fmt(t.purse)}</div>
+                    <div style={{fontSize:9,color:"var(--mut)"}}>{t.squad.length}pl</div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {screen === "players" && (
-        <PlayersScreen players={players} teams={teams} filterTier={filterTier} setFilterTier={setFilterTier} />
+      {tab === "teams" && (
+        <div className="teams-grid">{teams.map(t => <TeamCard key={t.id} team={t} />)}</div>
       )}
 
-      {screen === "teams" && (
-        <div className="teams-screen">
-          <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 32, letterSpacing: 2 }}>Team Squads</h2>
+      {tab === "players" && (
+        <div className="pg-wrap">
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2}}>All Players</div>
+            <div style={{fontSize:12,color:"var(--mut)"}}>{soldCount} sold · {players.length-soldCount} available</div>
           </div>
-          <div className="teams-grid">{teams.map((team) => <TeamCard key={team.id} team={team} />)}</div>
+          <div className="pg-grid">
+            {players.map(p => {
+              const st = p.soldTo !== null ? teams.find(t => t.id === p.soldTo) : undefined;
+              return (
+                <div key={p.id} className={`pc ${p.soldTo!==null?"sold-pc":""}`}>
+                  <div className="pc-av" style={{borderColor:tierColor(p.tier),background:`${tierColor(p.tier)}18`,color:tierColor(p.tier)}}>{p.img.slice(0,2)}</div>
+                  <div className="pc-name">{p.name}</div>
+                  <div className="pc-role">{p.role} · {p.country}</div>
+                  <div className="pc-tbadge" style={{color:tierColor(p.tier)}}>{TIERS[p.tier]?.badge} {p.tier}</div>
+                  {st ? <div className="pc-sold-tag">✓ {st.short} · {fmt(p.soldPrice??0)}</div>
+                      : <div className="pc-base">Base: {fmt(p.basePrice)}</div>}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+// ─── SHARED COMPONENTS ────────────────────────────────────────────────────────
 function TeamCard({ team }: { team: Team }) {
   return (
-    <div className="team-full-card">
-      <div className="team-full-header" style={{ background: `linear-gradient(135deg,${team.color}22,transparent)`, borderBottom: `3px solid ${team.color}` }}>
+    <div className="team-fc">
+      <div className="team-fc-hdr" style={{background:`linear-gradient(135deg,${team.color}18,transparent)`,borderBottom:`3px solid ${team.color}`}}>
         <div>
-          <div className="team-full-name">{team.name}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>Captain: {team.captain || "—"}</div>
+          <div className="team-fc-name">{team.name}</div>
+          <div style={{fontSize:10,color:"var(--mut)"}}>Purse: {fmt(team.purse)}</div>
         </div>
-        <div className="team-badge" style={{ background: team.color, color: "#fff" }}>{team.short}</div>
+        <div className="tbadge" style={{background:team.color,color:"#fff"}}>{team.short}</div>
       </div>
-      <div className="team-stats-row">
-        <div className="stat-box"><div className="stat-val" style={{ color: "var(--gold)" }}>{fmt(team.purse)}</div><div className="stat-lbl">Purse Left</div></div>
-        <div className="stat-box"><div className="stat-val">{team.squad.length}</div><div className="stat-lbl">Players</div></div>
-        <div className="stat-box"><div className="stat-val">{team.marqueeCount}/{MAX_MARQUEE}</div><div className="stat-lbl">Marquee</div></div>
+      <div className="team-stats">
+        <div className="tstat"><div className="tstat-v" style={{color:"var(--gold)"}}>{fmt(team.purse)}</div><div className="tstat-l">Left</div></div>
+        <div className="tstat"><div className="tstat-v">{team.squad.length}/{MAX_SQUAD}</div><div className="tstat-l">Players</div></div>
+        <div className="tstat"><div className="tstat-v">{team.marqueeCount}/{MAX_MARQUEE}</div><div className="tstat-l">Marquee</div></div>
       </div>
-      <div className="squad-list">
-        {team.squad.length === 0 && <div style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>No players yet</div>}
-        {team.squad.map((p) => (
-          <div key={p.id} className="squad-player">
-            <div className="squad-av" style={{ borderColor: avatarBg(p.tier), background: `${avatarBg(p.tier)}22`, color: avatarBg(p.tier) }}>
-              {p.img.slice(0, 2)}
+      <div className="sq-list">
+        {team.squad.length === 0 && <div style={{color:"var(--mut)",fontSize:11,padding:"6px 0"}}>No players yet</div>}
+        {team.squad.map(p => (
+          <div key={p.id} className="sq-row">
+            <div className="sq-av" style={{borderColor:tierColor(p.tier),background:`${tierColor(p.tier)}18`,color:tierColor(p.tier)}}>{p.img.slice(0,2)}</div>
+            <div className="sq-info">
+              <div className="sq-name">{p.name}{p.isMarquee&&<span className="mq-tag">M</span>}</div>
+              <div className="sq-sub">{p.role} · R{p.round}</div>
             </div>
-            <div className="squad-info">
-              <div className="squad-name">
-                {p.name}
-                {p.isMarquee && <span className="marquee-tag">M</span>}
-              </div>
-              <div className="squad-role">{p.role} · {p.country}</div>
-            </div>
-            <div className="squad-price">{fmt(p.soldPrice)}</div>
+            <div className="sq-price">{fmt(p.soldPrice)}</div>
           </div>
         ))}
       </div>
@@ -658,57 +996,19 @@ function TeamCard({ team }: { team: Team }) {
   );
 }
 
-function PlayersScreen({
-  players, teams, filterTier, setFilterTier,
-}: {
-  players: Player[];
-  teams: Team[];
-  filterTier: string;
-  setFilterTier: (v: string) => void;
-}) {
-  const filters = ["All", "Available", "Sold", ...Object.keys(SKILL_TIERS)];
-  const filtered = players.filter((p) => {
-    if (filterTier === "Available") return p.soldTo === null;
-    if (filterTier === "Sold") return p.soldTo !== null;
-    if (filterTier === "All") return true;
-    return p.tier === filterTier;
-  });
-
+function DoneScreen({ teams }: { teams: Team[] }) {
   return (
-    <div className="players-list-screen">
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 32, letterSpacing: 2 }}>Player Pool</h2>
-        <p style={{ color: "var(--muted)", fontSize: 13 }}>
-          {players.filter((p) => p.soldTo !== null).length} sold · {players.filter((p) => p.soldTo === null).length} available
-        </p>
+    <div>
+      <div className="done-wrap">
+        <div className="done-trophy">🏆</div>
+        <div className="done-title">AUCTION COMPLETE</div>
+        <p style={{color:"var(--mut)",marginBottom:40}}>All {TOTAL_ROUNDS} rounds done. Final squads are locked!</p>
       </div>
-      <div className="filter-bar">
-        {filters.map((f) => (
-          <button key={f} className={`filter-btn ${filterTier === f ? "active" : ""}`} onClick={() => setFilterTier(f)}>{f}</button>
-        ))}
-      </div>
-      <div className="players-grid">
-        {filtered.map((p) => {
-          const soldTeam = p.soldTo !== null ? teams.find((t) => t.id === p.soldTo) : undefined;
-          return (
-            <div key={p.id} className={`player-card ${p.soldTo !== null ? "sold-card" : ""}`}>
-              <div className="player-avatar-sm" style={{ borderColor: avatarBg(p.tier), background: `${avatarBg(p.tier)}22`, color: avatarBg(p.tier) }}>
-                {p.img.slice(0, 2)}
-              </div>
-              <div className="player-card-name">{p.name}</div>
-              <div className="player-card-role">{p.role} · {p.country}</div>
-              <div className="player-tier-badge" style={{ color: avatarBg(p.tier) }}>
-                {SKILL_TIERS[p.tier]?.badge ?? "◆"} {p.tier}
-              </div>
-              {soldTeam ? (
-                <div className="sold-tag">✓ {soldTeam.short} · {fmt(p.soldPrice ?? 0)}</div>
-              ) : (
-                <div className="base-price-tag">Base: {fmt(p.basePrice)}</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <div className="teams-grid">{teams.map(t => <TeamCard key={t.id} team={t} />)}</div>
     </div>
   );
 }
+
+// Suppress unused import warning
+const _ref = useRef;
+void _ref;
