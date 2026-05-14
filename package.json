@@ -1,0 +1,15 @@
+{
+  "homepage": "https://skirpane.github.io/parstrikerauction",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skirpane/parstrikerauction.git"
+  },
+  "scripts": {
+    "build": "cd parstrikerauction && npm run build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d parstrikerauction/dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
+}
