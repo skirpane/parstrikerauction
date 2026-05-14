@@ -31,46 +31,48 @@ const ADMIN_PASS = "admin123";
 
 const TIERS: Record<string, SkillTier> = {
   "World Class":   { basePrice: 200, color: "#FFD700", badge: "★★★" },
-  "International": { basePrice: 100, color: "#C0C0C0", badge: "★★"  },
-  "Domestic Star": { basePrice: 50,  color: "#CD7F32", badge: "★"   },
-  "Emerging":      { basePrice: 20,  color: "#4fc3f7", badge: "◆"   },
+  "International": { basePrice: 100, color: "#FF6B9D", badge: "★★"  },
+  "Domestic Star": { basePrice: 50,  color: "#00D9FF", badge: "★"   },
+  "Emerging":      { basePrice: 20,  color: "#9D4EDD", badge: "◆"   },
 };
 
 const TIER_ORDER = ["World Class", "International", "Domestic Star", "Emerging"];
 
 const RAW_PLAYERS = [
-  { id:1,  name:"Virat Kohli",      role:"Batsman",     tier:"World Class",   country:"IND", img:"VK"  },
-  { id:2,  name:"Rohit Sharma",     role:"Batsman",     tier:"World Class",   country:"IND", img:"RS"  },
-  { id:3,  name:"Jasprit Bumrah",   role:"Bowler",      tier:"World Class",   country:"IND", img:"JB"  },
-  { id:4,  name:"Jos Buttler",      role:"WK-Batsman",  tier:"World Class",   country:"ENG", img:"JBu" },
-  { id:5,  name:"Pat Cummins",      role:"All-Rounder", tier:"World Class",   country:"AUS", img:"PC"  },
-  { id:6,  name:"Babar Azam",       role:"Batsman",     tier:"World Class",   country:"PAK", img:"BA"  },
-  { id:7,  name:"Ben Stokes",       role:"All-Rounder", tier:"World Class",   country:"ENG", img:"BS"  },
-  { id:8,  name:"Kane Williamson",  role:"Batsman",     tier:"World Class",   country:"NZ",  img:"KW"  },
-  { id:9,  name:"Shreyas Iyer",     role:"Batsman",     tier:"International", country:"IND", img:"SI"  },
-  { id:10, name:"Suryakumar Yadav", role:"Batsman",     tier:"International", country:"IND", img:"SKY" },
-  { id:11, name:"Ravindra Jadeja",  role:"All-Rounder", tier:"International", country:"IND", img:"RJ"  },
-  { id:12, name:"Mohammed Shami",   role:"Bowler",      tier:"International", country:"IND", img:"MS"  },
-  { id:13, name:"Glenn Maxwell",    role:"All-Rounder", tier:"International", country:"AUS", img:"GM"  },
-  { id:14, name:"Quinton de Kock",  role:"WK-Batsman",  tier:"International", country:"SA",  img:"QDK" },
-  { id:15, name:"Trent Boult",      role:"Bowler",      tier:"International", country:"NZ",  img:"TB"  },
-  { id:16, name:"Rashid Khan",      role:"Bowler",      tier:"International", country:"AFG", img:"RK"  },
-  { id:17, name:"David Warner",     role:"Batsman",     tier:"International", country:"AUS", img:"DW"  },
-  { id:18, name:"Shubman Gill",     role:"Batsman",     tier:"International", country:"IND", img:"SG"  },
-  { id:19, name:"Prithvi Shaw",     role:"Batsman",     tier:"Domestic Star", country:"IND", img:"PS"  },
-  { id:20, name:"Ishan Kishan",     role:"WK-Batsman",  tier:"Domestic Star", country:"IND", img:"IK"  },
-  { id:21, name:"Shardul Thakur",   role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"ST"  },
-  { id:22, name:"Axar Patel",       role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"AP"  },
-  { id:23, name:"Arshdeep Singh",   role:"Bowler",      tier:"Domestic Star", country:"IND", img:"AS"  },
-  { id:24, name:"Rinku Singh",      role:"Batsman",     tier:"Domestic Star", country:"IND", img:"RSi" },
-  { id:25, name:"Tilak Varma",      role:"Batsman",     tier:"Domestic Star", country:"IND", img:"TV"  },
-  { id:26, name:"Deepak Hooda",     role:"All-Rounder", tier:"Domestic Star", country:"IND", img:"DH"  },
-  { id:27, name:"Yashasvi Jaiswal", role:"Batsman",     tier:"Emerging",      country:"IND", img:"YJ"  },
-  { id:28, name:"Riyan Parag",      role:"All-Rounder", tier:"Emerging",      country:"IND", img:"RP"  },
-  { id:29, name:"Nitish Rana",      role:"Batsman",     tier:"Emerging",      country:"IND", img:"NR"  },
-  { id:30, name:"Mukesh Kumar",     role:"Bowler",      tier:"Emerging",      country:"IND", img:"MK"  },
-  { id:31, name:"Abhishek Sharma",  role:"All-Rounder", tier:"Emerging",      country:"IND", img:"AbS" },
-  { id:32, name:"Rajat Patidar",    role:"Batsman",     tier:"Emerging",      country:"IND", img:"RPa" },
+  { id:1,  name:"Abdul Mubeen",     role:"All-Rounder",     tier:"Emerging", country:"IND", img:"AM"  },
+  { id:2,  name:"Amit Jadli",       role:"Batsman/Wicket-Keeper",     tier:"Emerging", country:"IND", img:"AJ"  },
+  { id:3,  name:"Anshul Dikshit",   role:"Batsman",      tier:"Emerging", country:"IND", img:"AD"  },
+  { id:4,  name:"Ashish Negeet",    role:"All-Rounder", tier:"Emerging", country:"IND", img:"AN"  },
+  { id:8,  name:"Janesh Chohan",    role:"All-Rounder",     tier:"Emerging", country:"IND", img:"JC"  },
+  { id:9,  name:"Jitendra Mistry",  role:"Batsman", tier:"Emerging", country:"IND", img:"JM"  },
+  { id:10, name:"Kannan Santharam", role:"All-Rounder",     tier:"Emerging", country:"IND", img:"KS"  },
+  { id:11, name:"Karthik Vempati",  role:"Batsman",     tier:"Emerging", country:"IND", img:"KV"  },
+  { id:12, name:"Kayur Kumbhani",   role:"All-Rounder", tier:"Emerging", country:"IND", img:"KK"  },
+  { id:13, name:"Krunal Shah",      role:"All-Rounder",      tier:"Emerging", country:"IND", img:"KSh" },
+  { id:14, name:"Mahendra Negi",    role:"All-Rounder",     tier:"Emerging", country:"IND", img:"MN"  },
+  { id:15, name:"Mujeeb Mohammad",  role:"Bowler",      tier:"Emerging", country:"IND", img:"MM"  },
+  { id:16, name:"Mukul Datta",      role:"Bowling", tier:"Emerging", country:"IND", img:"MD"  },
+  { id:17, name:"Nikhil Surabhi",   role:"Batsman",     tier:"Emerging", country:"IND", img:"NS"  },
+  { id:18, name:"Pradeep Patil",    role:"Bowling All-Rounder",      tier:"Emerging", country:"IND", img:"PP"  },
+  { id:19, name:"Pranay Raj",       role:"All-Rounder", tier:"Emerging", country:"IND", img:"PR"  },
+  { id:20, name:"Raghu Shivakumar", role:"Batsman",     tier:"Emerging", country:"IND", img:"RS"  },
+  { id:21, name:"Rajat Mehrotra",   role:"All-Rounder/Wicket-Keeper", tier:"Emerging", country:"IND", img:"RM"  },
+  { id:22, name:"Sachin Jagtap",    role:"Batsman",      tier:"Emerging", country:"IND", img:"SJ"  },
+  { id:23, name:"Sameer Saxena",    role:"Batsman",     tier:"Emerging", country:"IND", img:"SS"  },
+  { id:24, name:"Sandeep Kirpane",  role:"All-Rounder", tier:"Emerging", country:"IND", img:"SK"  },
+  { id:25, name:"Sanjay Prajapati", role:"Bowler",      tier:"Emerging", country:"IND", img:"SP"  },
+  { id:26, name:"Sanket Rana",      role:"Batsman",     tier:"Emerging", country:"IND", img:"SRa" },
+  { id:27, name:"Santosh Vaghmare", role:"Bowling All-Rounder", tier:"Emerging", country:"IND", img:"SV"  },
+  { id:28, name:"Savan Paka",       role:"Batsman",      tier:"Emerging", country:"IND", img:"SPa" },
+  { id:30, name:"Sushil Page",      role:"Batsman", tier:"Emerging", country:"IND", img:"SuP" },
+  { id:31, name:"Tushar More",      role:"Bowler",      tier:"Emerging", country:"IND", img:"TM"  },
+  { id:32, name:"Vikramjeet Sangavkar", role:"Batsman/Wicket-Keeper", tier:"Emerging", country:"IND", img:"VS"  },
+  { id:33, name:"Vineet Shende",    role:"All-Rounder", tier:"Emerging", country:"IND", img:"VSh" },
+  { id:34, name:"Srini Vellingiri", role:"Batsman",      tier:"Emerging", country:"IND", img:"SV2" },
+  { id:35, name:"Aravind Kaluva",   role:"Bowler All-Rounder",     tier:"Emerging", country:"IND", img:"AK"  },
+  { id:36, name:"Raghav Ambati",    role:"Batsman All-Rounder", tier:"Emerging", country:"IND", img:"RA"  },
+  { id:37, name:"Karan Shah",       role:"Bowler All-Rounder",      tier:"Emerging", country:"IND", img:"KSh2" },
+  { id:38, name:"Chetan Lad",       role:"Batsman",     tier:"Emerging", country:"IND", img:"CL"  },
 ];
 
 const INIT_PLAYERS: Player[] = RAW_PLAYERS.map(p => ({
@@ -78,9 +80,9 @@ const INIT_PLAYERS: Player[] = RAW_PLAYERS.map(p => ({
 }));
 
 const INIT_TEAMS: Team[] = [
-  { id: 1, name: "Parstriker Blue Indians",      short: "BI",  color: "#004BA0", accent: "#D1AB3E",  captainPass:"mi123",  purse:PURSE, squad:[], marqueeCount:0 },
-  { id: 2, name: "Parstriker Red Knight", short: "RK", color: "#F5A623", accent: "#0081C9", captainPass:"rk123", purse:PURSE, squad:[], marqueeCount:0 },
-  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#D10000", accent: "#FFD700", captainPass:"ww123", purse:PURSE, squad:[], marqueeCount:0 },
+  { id: 1, name: "Parstriker Blue Indians",   short: "BI",  color: "#0066ff", accent: "#FFD700",  captainPass:"bi123",  purse:PURSE, squad:[], marqueeCount:0 },
+  { id: 2, name: "Parstriker Red Knights",    short: "RK", color: "#ff3333", accent: "#FFD700", captainPass:"rk123", purse:PURSE, squad:[], marqueeCount:0 },
+  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#ffffff", accent: "#FFD700", captainPass:"ww123", purse:PURSE, squad:[], marqueeCount:0 },
 ];
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 const fmt = (v: number): string => v >= 100 ? `₹${(v/100).toFixed(1)}Cr` : `₹${v}L`;
@@ -116,38 +118,44 @@ function useShared<T>(key: string, init: T): [T, (v: T | ((p: T) => T)) => void]
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#08080f;--s1:#101018;--s2:#181825;--s3:#222232;--bd:#2e2e45;--gold:#FFD700;--txt:#eeeef8;--mut:#6060a0;--ok:#2ed573;--ng:#ff4757;--warn:#ffa502}
-body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+:root{--bg:#0f0f1e;--s1:#1a1a2e;--s2:#16213e;--s3:#0f3460;--bd:#4169E1;--gold:#FFD700;--txt:#e8f1f5;--mut:#a0aec0;--ok:#2ed573;--ng:#ff4757;--warn:#ffa502;--royal:#4169E1;--team-red:#ff4757;--team-blue:#4169E1;--team-white:#ffffff;--accent-pink:#FF6B9D;--accent-cyan:#00D9FF;--accent-purple:#9D4EDD}
+body{background:linear-gradient(135deg,#0f0f1e 0%,#16213e 100%);color:var(--txt);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
 
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 20%,#1a0a2e,transparent 60%),radial-gradient(ellipse at 70% 80%,#0a1a0e,transparent 60%),var(--bg)}
-.login-box{background:var(--s2);border:1px solid var(--bd);border-radius:24px;padding:48px 40px;width:100%;max-width:420px;text-align:center}
-.login-logo{font-family:'Bebas Neue';font-size:42px;letter-spacing:4px;color:var(--gold);margin-bottom:4px}
-.login-sub{color:var(--mut);font-size:14px;margin-bottom:36px}
+.logo-banner{background:linear-gradient(135deg,#ff4757 0%,#FFD700 25%,#4169E1 50%,#9D4EDD 75%,#ffffff 100%);padding:2px;border-radius:12px;margin-bottom:20px;box-shadow:0 0 30px rgba(255,71,87,0.6),0 0 20px rgba(157,78,221,0.4)}
+.logo-container{background:linear-gradient(135deg,var(--s2) 0%,#1a3e5e 100%);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;gap:12px;min-height:60px;border:1px solid rgba(255,215,0,0.3)}
+.logo-img{width:50px;height:50px;background:linear-gradient(135deg,#ff4757 0%,#FFD700 50%,#4169E1 100%);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.8);box-shadow:0 0 15px rgba(255,71,87,0.5)}
+.logo-text{font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;background:linear-gradient(135deg,#FFD700,#FF6B9D,#4169E1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 10px rgba(157,78,221,0.6)}
+
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 20% 30%,rgba(255,107,157,0.2),transparent 50%),radial-gradient(ellipse at 80% 70%,rgba(157,78,221,0.2),transparent 50%),linear-gradient(135deg,#0f0f1e,#16213e)}
+.login-box{background:linear-gradient(135deg,rgba(26,26,46,0.8) 0%,rgba(22,33,62,0.8) 100%);border:2px solid;border-image:linear-gradient(135deg,#FFD700,#FF6B9D,#4169E1,#9D4EDD) 1;border-radius:24px;padding:40px 36px;width:100%;max-width:480px;text-align:center;box-shadow:0 0 40px rgba(157,78,221,0.4),0 0 60px rgba(255,107,157,0.2);backdrop-filter:blur(10px)}
+.login-logo{font-family:'Bebas Neue';font-size:42px;letter-spacing:4px;background:linear-gradient(135deg,#FFD700,#FF6B9D,#4169E1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.login-sub{color:var(--mut);font-size:14px;margin-bottom:32px}
 .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
-.role-btn{background:var(--s3);border:2px solid var(--bd);border-radius:14px;padding:20px 12px;cursor:pointer;transition:all .2s;color:var(--txt);text-align:center}
-.role-btn:hover,.role-btn.sel{border-color:var(--gold);background:rgba(255,215,0,.07)}
-.role-icon{font-size:28px;margin-bottom:6px}
-.role-name{font-family:'Rajdhani';font-weight:700;font-size:15px;letter-spacing:1px}
+.role-btn{background:linear-gradient(135deg,rgba(255,107,157,0.15),rgba(157,78,221,0.15));border:2px solid rgba(255,215,0,0.4);border-radius:14px;padding:20px 12px;cursor:pointer;transition:all .3s;color:var(--txt);text-align:center;box-shadow:0 4px 15px rgba(157,78,221,0.2)}
+.role-btn:hover{border-color:#FFD700;background:linear-gradient(135deg,rgba(255,107,157,0.3),rgba(157,78,221,0.25));transform:translateY(-3px);box-shadow:0 8px 30px rgba(255,107,157,0.4);text-shadow:0 0 10px rgba(255,215,0,0.8)}
+.role-btn.sel{border-color:#FFD700;background:linear-gradient(135deg,rgba(255,107,157,0.5),rgba(157,78,221,0.4));box-shadow:0 0 30px rgba(255,215,0,0.6)}
+.role-icon{font-size:32px;margin-bottom:6px;text-shadow:0 0 10px rgba(255,215,0,0.6);filter:drop-shadow(0 0 8px rgba(157,78,221,0.5))}
+.role-name{font-family:'Rajdhani';font-weight:700;font-size:15px;letter-spacing:1px;color:#FFD700}
 .role-hint{font-size:11px;color:var(--mut);margin-top:3px}
-.inp{width:100%;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;color:var(--txt);font-size:15px;outline:none;transition:border-color .2s;margin-bottom:12px}
-.inp:focus{border-color:var(--gold)}
-.go-btn{width:100%;padding:16px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;cursor:pointer;transition:all .2s}
-.go-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,215,0,.3)}
+.inp{width:100%;background:rgba(15,52,96,0.6);border:2px solid rgba(255,215,0,0.3);border-radius:10px;padding:12px 16px;color:var(--txt);font-size:15px;outline:none;transition:all .2s;margin-bottom:12px}
+.inp:focus{border-color:#FFD700;background:rgba(15,52,96,0.8);box-shadow:0 0 15px rgba(255,215,0,0.4)}
+.go-btn{width:100%;padding:16px;background:linear-gradient(135deg,#ff4757 0%,#FFD700 25%,#9D4EDD 75%,#FF6B9D 100%);border:none;border-radius:12px;color:#000;font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;cursor:pointer;transition:all .2s;font-weight:bold;text-shadow:0 1px 3px rgba(255,255,255,0.5);box-shadow:0 4px 15px rgba(255,71,87,0.3)}
+.go-btn:hover{transform:translateY(-2px);box-shadow:0 8px 35px rgba(255,107,157,.6)}
 .go-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .err-msg{color:var(--ng);font-size:13px;margin-bottom:10px}
 .hint-txt{margin-top:10px;font-size:11px;color:var(--mut)}
 
-.hdr{background:linear-gradient(90deg,#08080f,#12081e,#08080f);border-bottom:1px solid var(--bd);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(20px)}
-.hdr-logo{font-family:'Bebas Neue';font-size:22px;letter-spacing:3px;color:var(--gold)}
+.hdr{background:linear-gradient(90deg,#0f0f1e 0%,#16213e 50%,#0f0f1e 100%);border-bottom:2px solid;border-image:linear-gradient(90deg,#FFD700,#FF6B9D,#4169E1) 1;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(20px);box-shadow:0 4px 20px rgba(157,78,221,0.3)}
+.hdr-logo{font-family:'Bebas Neue';font-size:22px;letter-spacing:3px;background:linear-gradient(135deg,#FFD700,#FF6B9D,#4169E1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))}
 .hdr-logo span{color:var(--txt)}
 .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.role-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
-.nav-bar{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px;overflow-x:auto}
+.role-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:linear-gradient(135deg,rgba(255,107,157,0.3),rgba(157,78,221,0.2));border:1px solid #FFD700;color:#FFD700}
+.nav-bar{background:rgba(22,33,62,0.7);border-bottom:1px solid rgba(255,215,0,0.2);padding:0 20px;display:flex;gap:2px;overflow-x:auto}
 .nav-btn{background:transparent;border:none;color:var(--mut);padding:13px 15px;cursor:pointer;font-family:'Rajdhani';font-weight:700;font-size:13px;letter-spacing:1px;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
-.nav-btn:hover{color:var(--txt)}
-.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
-.logout-btn{background:var(--s3);border:1px solid var(--bd);color:var(--mut);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
-.logout-btn:hover{border-color:var(--ng);color:var(--ng)}
+.nav-btn:hover{color:#FFD700}
+.nav-btn.active{color:#FFD700;border-bottom-color:#FFD700;text-shadow:0 0 10px rgba(255,215,0,0.6)}
+.logout-btn{background:linear-gradient(135deg,rgba(255,107,157,0.2),rgba(157,78,221,0.15));border:1px solid rgba(255,215,0,0.4);color:var(--mut);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
+.logout-btn:hover{border-color:var(--ng);color:var(--ng);background:rgba(255,71,87,0.15)}
 .reset-btn{background:var(--s3);border:1px solid var(--ng);color:var(--ng);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
 
 .round-banner{background:linear-gradient(135deg,#1a0a2e,#0a1a2e);border:1px solid var(--bd);border-radius:20px;padding:48px 40px;text-align:center;margin:24px auto;max-width:580px}
@@ -463,8 +471,14 @@ function LoginScreen({ teams, onLogin }: { teams: Team[]; onLogin: (r: Role, tid
   return (
     <div className="login-wrap">
       <div className="login-box">
-        <div className="inp">PARSTRIKER AUCTION</div>
-        <div className="login-sub">Select your role to enter the auction room</div>
+        <div className="logo-banner">
+          <div className="logo-container">
+            <div className="logo-img">🏏</div>
+            <div className="logo-text">PARSTRIKER</div>
+          </div>
+        </div>
+        <div className="auction-heading">⚡ PARSTRIKER AUCTION 🏆</div>
+        <div className="login-sub">✨ Select your role to enter the auction room ✨</div>
         <div className="role-grid" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
           {roles.map(({ r, ic, nm, hn }) => (
             <div key={r} className={`role-btn ${sel===r?"sel":""}`} onClick={() => { setSel(r); setPass(""); setErr(""); }}>
