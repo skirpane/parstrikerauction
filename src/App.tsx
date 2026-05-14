@@ -98,9 +98,9 @@ const INITIAL_PLAYERS: Player[] = RAW_PLAYERS.map((p) => ({
 }));
 
 const DEFAULT_TEAMS: Team[] = [
-  { id: 1, name: "Parstriker Blue Indians",      short: "BI",  color: "#004BA0", accent: "#D1AB3E", captain: "", purse: PURSE, squad: [], marqueeCount: 0 },
-  { id: 2, name: "Parstriker Red Knight", short: "RK", color: "#F5A623", accent: "#0081C9", captain: "", purse: PURSE, squad: [], marqueeCount: 0 },
-  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#D10000", accent: "#FFD700", captain: "", purse: PURSE, squad: [], marqueeCount: 0 },
+  { id: 1, name: "Parstriker Blue Indians",      short: "BI",  color: "#004BA0", accent: "#D1AB3E", captain: "Ashish", purse: PURSE, squad: [], marqueeCount: 0 },
+  { id: 2, name: "Parstriker Red Knight", short: "RK", color: "#F5A623", accent: "#0081C9", captain: "Kannan", purse: PURSE, squad: [], marqueeCount: 0 },
+  { id: 3, name: "Parstriker White Wolves",   short: "WW", color: "#D10000", accent: "#FFD700", captain: "Sandeep", purse: PURSE, squad: [], marqueeCount: 0 },
 ];
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
