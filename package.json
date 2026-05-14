@@ -5,9 +5,11 @@
     "url": "https://github.com/skirpane/parstrikerauction.git"
   },
   "scripts": {
+    "dev": "cd parstrikerauction && npm run dev",
     "build": "cd parstrikerauction && npm run build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d parstrikerauction/dist"
+    "deploy": "gh-pages -d parstrikerauction/dist",
+    "preview": "cd parstrikerauction && npm run preview"
   },
   "devDependencies": {
     "gh-pages": "^6.3.0"
